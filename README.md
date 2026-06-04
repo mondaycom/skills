@@ -1,5 +1,7 @@
 # monday.com Agent Skills
 
+[![skills.sh](https://skills.sh/b/mondaycom/skills)](https://skills.sh/mondaycom/skills)
+
 Official [Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)
 for [monday.com](https://monday.com) - the customizable AI work platform for work
 management, CRM, dev, service, and campaigns. They equip any skills-compatible
