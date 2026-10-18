@@ -15,7 +15,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.1"
+  version: "0.2.0"
 ---
 
 # Docs Collaborator
@@ -45,7 +45,7 @@ Each block type has a different set of allowed mutations. Picking the wrong oper
 | table | `replace_block` only | Row / column count and column widths immutable; table cell content not addressable via API after creation - see "Tables" below |
 | image | `replace_block` to swap source | URL / asset_id immutable after creation |
 | video | `replace_block` to swap source | raw_url immutable after creation |
-| notice_box | `replace_block` to change theme | theme immutable; content lives in child blocks (see "Notice boxes" below) |
+| notice_box | `replace_block` to change theme | theme immutable; content lives in child blocks (see "Notice boxes" in `references/rich-content.md`) |
 | layout | `replace_block` only | Cell content cannot be populated via API at all - see "Layouts" below |
 | BOARD embed, WIDGET embed, DOC embed, GIPHY | `delete_block` only | No public API to create or modify these block types |
 
@@ -82,33 +82,7 @@ If the user does not name a workspace, fall back to the user's primary workspace
 
 When the user invents a shape ("partner enablement page", "AI readiness snapshot", "Q3 onboarding context"), compose with judgment - sections, tables, notice boxes, embeds - rather than forcing a named template. The differentiators apply to any shape.
 
-**Default mode: passive scaffold.** Reserve visible slots for embeds and mentions in the markdown body using machine-readable markers. Skill (and downstream agents) can later detect and fill these slots when the user names the underlying items / users.
-
-| Slot type | Marker format | Example |
-|---|---|---|
-| Live column-value embed | `_[embed: <column> of <item-ref>]_` | `_[embed: status of <top-priority item>]_` |
-| User mention | `_[mention: <user-ref>]_` | `_[mention: <owner>]_` |
-| Doc / board mention | `_[mention-doc: <doc-name>]_` / `_[mention-board: <board-name>]_` | `_[mention-board: Project Tracker]_` |
-
-Italic styling on slot markers gives visual signal that the content is dynamic. The bracket-keyword format is grep-able for downstream automation.
-
-**Active mode: escalate when intent signals are present.** Switch from passive scaffold to wiring real embeds / mentions / cross-links when the user's prompt signals intent through name-based references. Never on item IDs - users speak in names.
-
-Triggers that escalate to active mode:
-
-- Item names ("the Q3 plan", "the launch milestone", "the blocker we discussed")
-- Board names ("from the project tracker", "in the bug board")
-- Owner names ("Daniel's tasks", "my items", "the design team's")
-- Positional refs ("the top 3 priorities", "the most recent stuck items")
-- Imperative wiring ("embed live status from", "show current status of", "pull from <board>", "wire up the embeds", "tag me as owner")
-
-Resolution chain (name -> ID, never ask the user for IDs):
-- Item name -> `get_board_items_page` with `searchTerm` scoped to the named board
-- Board name -> `search` with `searchType: BOARD`
-- Owner name -> `list_users_and_teams` with `name:` (scoped per cross-skill rule)
-- Ambiguous match -> ask once with the top 3 candidates; do not silently pick
-
-**Active mode communication contract.** When the skill picks items / users in active mode, always state the choice and the reasoning: "Picked items X, Y, Z because <reason>. Override by naming different items."
+**Passive vs active mode.** By default, scaffold with visible slot markers (`_[embed: ...]_`, `_[mention: ...]_`) where embeds and mentions belong. Switch to active mode - wiring real embeds and mentions - when the user refers to items, boards or people by name; resolve names to IDs yourself and state what you picked. Read `references/create-modes.md` before wiring anything: it has the marker formats, escalation triggers, name-to-ID resolution chain and the communication contract.
 
 Markdown notes that matter:
 
@@ -182,11 +156,7 @@ Two modes:
 
 The API's `blocks_as_markdown` projection renders mentions as `@{USER-XXX}` placeholders and live column-value embeds as empty space. **This is not the right rendering for a "show me what's in this doc" prompt** - the user sees pills and live chips when they open the doc; the textual rendering should mirror that.
 
-For read responses to "show me / what's in / read this doc" prompts:
-
-- **Always resolve mentions.** Map every USER mention id to a display name (via cached `list_users_and_teams` or a scoped lookup). Map every DOC mention to its doc name. Map every BOARD mention to its board name. Render inline as `**@Alex Polonsky**` (or similar) rather than `@{USER-38288909}`.
-- **Resolve embeds when data is cached or cheap to fetch.** If the doc references items / columns already touched in the conversation, use the cached value. If not, fetch with `get_board_items_page` scoped to the specific items + columns. Render as the resolved column value ("**Working on it**", "**No value**", "**2026-05-15**") inline. Skip resolution only if it would require many extra MCP calls for a long doc.
-- **Always keep the structured enumeration table as a secondary affordance.** List every inline non-text element (mentions, embeds, notice_boxes, code blocks, tables) with block IDs and IDs. Useful for downstream edit operations and for users who want to target a specific element.
+For "show me / what's in / read this doc" prompts: resolve every mention to a display name, resolve embeds to their current values when cheap, and add an enumeration table of inline non-text elements with their IDs. Read `references/read-rendering.md` for the exact rules.
 
 Do not use `show-table` for doc content - the doc itself is the UI. Render in chat with markdown.
 
@@ -206,7 +176,7 @@ Reach for the simplest one that does the job:
 - **Change a block's subtype** (paragraph -> H2, bulleted -> numbered, INFO notice -> WARNING notice): `replace_block`. Subtypes are set on creation only.
 - **Insert a block at a precise position:** `create_block` with `after_block_id` set. There is no `before_block_id` operation - to insert at the very top of a doc, the only path is to insert after the doc's first block.
 - **Delete:** `delete_block`. The only path for BOARD / WIDGET / DOC embed / GIPHY blocks.
-- **Comment:** `add_comment` (see "Comments" below).
+- **Comment:** `add_comment` (see "Comments" in `references/rich-content.md`).
 - **Rename the doc:** `set_name`.
 
 The full type-to-operation routing lives in `references/block-operations-matrix.md`.
@@ -236,78 +206,9 @@ Worked examples and the full attribute table live in `references/delta-format-ch
 
 After a non-trivial edit, re-read with `include_blocks: true` to confirm the blocks landed as intended. Plain-language confirmation: what changed, the doc URL. Do not narrate the API calls.
 
-## Tables
+## Rich content: tables, notice boxes, layouts, mentions, live embeds, comments
 
-The `table` block type is supported but constrained:
-
-- **Pre-filled tables**: only via `add_markdown_content` or the initial `create_doc` markdown body. Markdown table syntax populates cells in one shot.
-- **Empty tables via `create_block`**: possible, but cells cannot be populated via the API after creation. The user has to fill cells from the monday UI.
-- **Restructuring (changing row / column count or widths)**: `replace_block` - the new table can be pre-filled if you replace it via `add_markdown_content` instead, by deleting the old table and appending a new markdown table after the deletion target.
-
-When the user asks to "edit cell B2", explain the constraint and offer the closest workaround: rewrite the whole table via markdown.
-
-## Notice boxes
-
-A notice_box is a styled callout container. Creating one with content takes two `update_doc` calls:
-
-1. **Call 1:** `create_block` with `block_type: "notice_box"` and `theme: "INFO" | "TIPS" | "WARNING" | "GENERAL"`. Capture the returned block ID.
-2. **Call 2:** `create_block` with `parent_block_id: "<notice_box_id>"` and the child block content (typically text).
-
-Theme cannot be changed after creation - use `replace_block` to swap themes, but child content does not transfer; recreate the children inside the new notice_box.
-
-## Layouts
-
-The `layout` block type creates a multi-column layout (2-6 columns). **Cell content cannot be populated via the API at all.** No markdown shortcut, no `parent_block_id` support. Layouts created via the API are empty shells the user fills from the monday UI.
-
-If the user asks for "a two-column section with a summary on the left and metrics on the right", call this out: build the layout shell via `create_block`, then ask the user to fill the cells in the UI, or fall back to a different shape (heading + sub-headings, or a single-column with a separator).
-
-## Mentions
-
-`{insert: {mention: {id, type}}}` tags a user, doc, or board inline. Three types:
-
-- `USER` (most common). `id` is the numeric user ID from `list_users_and_teams`.
-- `DOC`. `id` is the doc's `object_id`.
-- `BOARD`. `id` is the board ID.
-
-Resolution rules:
-
-- The user gives a name ("tag Daniel"): call `list_users_and_teams` with `name: "Daniel"` to get the ID. Confirm the match if multiple results.
-- The user gives an email: search by the local-part as a name (e.g. `daniel.h` for `daniel.h@example.com`); fall back to asking for the display name.
-- **Never call `list_users_and_teams` without a `name` or `userIds` parameter.** The unfiltered call returns the entire account user list (hundreds of KB on real tenants) and breaks token limits.
-
-Mention blots ignore `attributes`. Do not try to bold or color a mention.
-
-## Live column-value embeds - the differentiator
-
-`{insert: {column_value: {item_id, column_id}}}` embeds the current value of a column on a specific board item, rendered live every time the doc is opened. This is the capability ecosystem builders should reach for - it turns a static doc into a living dashboard fragment.
-
-Use cases worth scaffolding:
-
-- **Weekly update:** embed the status, owner, and due date of the top 5 priorities.
-- **RFC:** embed the linked tracking item's status so reviewers see whether the work has shipped.
-- **Runbook:** embed the on-call rotation column and the current incident's status.
-- **Project tracker summary:** at the top of a project doc, embed key milestones' due dates and statuses.
-
-Resolution rules:
-
-- Validate `item_id` exists via `get_board_items_page` or `get_full_board_data` before writing.
-- Validate `column_id` matches a real column on the item's board via `get_board_info`. Wrong column IDs produce silent rendering gaps - the embed shows as empty space.
-- **Always use the board-specific status column ID** (e.g. `color_mm2x25ey`), never a generic literal like `"status"`. Cross-skill rule.
-- Be careful with private boards: embedded column values respect board permissions, so a viewer without access to the source board sees nothing.
-
-## Comments
-
-`add_comment` operates at three scopes:
-
-- **Doc-level**: omit `block_id`. The comment is attached to the doc as a whole.
-- **Block-level**: pass `block_id` (or an array of block IDs to highlight several at once). Only works on text, code, list_item, title, and quote blocks - not on divider, table, layout, notice_box, image, video, or giphy blocks.
-- **Text-selection**: pass a single `block_id` plus `selection_from` (0-indexed start) and `selection_length`. Only valid on text / code / list_item.
-
-Threading: pass `parent_update_id` (the comment's update ID, returned by `add_comment` or `read_docs` with `include_comments: true`) to reply.
-
-Comment body uses HTML, not markdown. To tag a user in a comment, do not put `@` in the body - use `mentions_list` with a JSON array: `[{"id":"38288909","type":"User"}]`. Valid types: `User`, `Team`, `Board`, `Project`.
-
-Deleting a comment via `delete_update` does NOT auto-clean the anchored reference on the host block's text insert (`attributes.comments` still lists the dead update_id). For full cleanup, separately update the block's delta to drop the `comments` attribute.
+Live column-value embeds are the differentiator: they keep a doc in sync with real board data. Before adding any of these elements, read `references/rich-content.md`. It covers table constraints, notice-box nesting, layouts, mention types, live column-value embeds and comments.
 
 ## Smart defaults
 
@@ -367,17 +268,7 @@ Apply this duplicate-detection rule to every write path in the skill.
 
 ## Surface errors with remediation
 
-Common failures and how to remediate:
-
-- **"block_id must be UUID"** - the ID is malformed (not a valid UUID). The API validates UUID format before lookup. Re-read with `include_blocks: true` and use the actual block IDs returned.
-- **"Block not found" / no-op** - the block_id is well-formed but stale. Re-read with `include_blocks: true` and retry. Block IDs change when blocks are deleted and recreated (e.g. via `replace_block`).
-- **"Cannot use update_block on a divider / table / image"** - schema mismatch. Switch to `replace_block`.
-- **"parent_block_id references a block not yet created"** - notice_box nesting attempted in the same call. Split into two calls.
-- **"CellLimitExceededException" on `create_doc location=item`** - the target doc column cell is already populated (1-doc-per-cell limit). Fall back to a workspace-level doc with a bi-directional DOC mention cross-link to the existing attached doc. See Step 1 preflight.
-- **Live embed renders blank** - either the item / column was deleted, or the viewer lacks permission on the source board. Verify with `get_board_info`. If it's a permissions issue, suggest moving the source data to a less-restricted board.
-- **"Plan limit reached"** on `create_doc` - Free / Basic 3-doc cap. Suggest upgrading to Standard+ or deleting an unused doc.
-- **"Cannot create BOARD / WIDGET / DOC / GIPHY block"** - these block types have no public-create path. Suggest the closest alternative (a markdown link to the board, or `add_markdown_content` with a board URL).
-- **Orphan comment anchor** - if `read_docs` shows `attributes.comments: [<update_id>]` on a block but the comment is missing from the comments array, the comment was deleted but the anchor remained. Separately update the block's delta to drop the `comments` attribute for full cleanup.
+When a call fails, tell the user what went wrong and how to fix it. The catalog of common failures and their remediation (malformed or stale block IDs, schema mismatches, nesting in one call, cell limits, blank embeds, plan limits, unsupported block types, orphan comment anchors) is in `references/errors.md`.
 
 ## Be conservative on destructive operations
 
@@ -414,4 +305,8 @@ Never tell the user "I called `read_docs` then `update_doc` with an `update_bloc
 ## Additional resources
 
 - **`references/block-operations-matrix.md`** - per-block-type allowed operations, gotchas, and example payloads.
+- **`references/create-modes.md`** - passive-scaffold slot markers, active-mode triggers, name-to-ID resolution and the communication contract.
+- **`references/rich-content.md`** - tables, notice boxes, layouts, mentions, live column-value embeds and comments.
+- **`references/read-rendering.md`** - how to render mentions, embeds and inline elements when reading a doc.
+- **`references/errors.md`** - common failures and how to remediate them.
 - **`references/delta-format-cheatsheet.md`** - delta_format insert ops, attributes, mentions, column_value embeds, the terminator rule, common patterns, and the passive-mode slot marker format.
