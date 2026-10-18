@@ -15,7 +15,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # Docs Collaborator
@@ -49,7 +49,7 @@ Each block type has a different set of allowed mutations. Picking the wrong oper
 | layout | `replace_block` only | Cell content cannot be populated via API at all - see "Layouts" below |
 | BOARD embed, WIDGET embed, DOC embed, GIPHY | `delete_block` only | No public API to create or modify these block types |
 
-**Rendering quirk - list_item + mention via `update_block`.** When adding an inline mention to a list_item that previously contained only text, `update_block` may save the mention blot correctly (data confirms) but Cowork can fail to render the pill (text-prefix-before-mention case). Workaround: use `replace_block` with a fresh list_item containing the same delta. Same pattern in a `normal_text` block renders correctly; the quirk appears specific to list_item updates.
+**Rendering quirk - list_item + mention via `update_block`.** When adding an inline mention to a list_item that previously contained only text, `update_block` may save the mention blot correctly (data confirms) but some clients can fail to render the pill (text-prefix-before-mention case). Workaround: use `replace_block` with a fresh list_item containing the same delta. Same pattern in a `normal_text` block renders correctly; the quirk appears specific to list_item updates.
 
 Full per-block-type detail with worked examples lives in `references/block-operations-matrix.md`. Read it before authoring any non-trivial structural edit.
 
@@ -363,7 +363,7 @@ Exclusions where duplication is normal and detection should NOT trigger:
 - Adjacent same-style blocks in a list - intended structure, not duplication.
 - Repeating section names in different parents (e.g. two "Action Items" H3s under different H2s).
 
-This rule is lifted to `SKILL_QUALITY_PRINCIPLES.md` as a cross-skill rule. Every write path in the plugin honors it.
+Apply this duplicate-detection rule to every write path in the skill.
 
 ## Surface errors with remediation
 

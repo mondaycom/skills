@@ -11,7 +11,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 # Project Status Report
@@ -35,7 +35,7 @@ For short summary lines (totals, counts), use plain text. Do not duplicate widge
 
 ### show-table filter fallback (required)
 
-When you call `show-table` with a `filters` array (for example, to scope to overdue items or to exclude Done), always print a short plain-text list of the filtered rows directly below the widget. The Cowork-rendered widget surfaces a filter chip but does NOT auto-apply the filter, so Done items remain visible in the table. The plain-text list is the authoritative view; the widget is the interactive surface.
+When you call `show-table` with a `filters` array (for example, to scope to overdue items or to exclude Done), always print a short plain-text list of the filtered rows directly below the widget. Some clients surface a filter chip but do NOT auto-apply the filter, so Done items remain visible in the table. The plain-text list is the authoritative view; the widget is the interactive surface.
 
 Format the fallback as a tight bulleted list of at most 10 rows, each showing item name, owner, due date, and status. If more than 10 rows match, print the first 10 and add a "(+N more)" line. Skip the fallback only when no `filters` array is sent (an unfiltered show-table renders correctly).
 
@@ -181,7 +181,7 @@ Adjust the report based on user requests:
 - If `get_board_info` fails (e.g., board not found, no permission), report which board failed and suggest an alternative: "I cannot access the Q3 Marketing board. Want me to use a board you have access to, or should I ask the owner to share it?"
 - If `board_insights` returns empty, fall back to manual aggregation from `get_board_items_page` rather than reporting empty distributions. Items with no status set surface as an empty-string label in `board_insights`; render these as "No status" in the chart, not as a blank segment.
 - If the board has no status column, note this and report based on group distribution instead.
-- **Empty board.** If `get_board_items_page` returns 0 items, do not run Steps 4-7 or render any widgets. Reply: "Test - <board name> has no items yet." Then suggest creating items (links to the `task-management` skill) or reviewing the board's setup.
+- **Empty board.** If `get_board_items_page` returns 0 items, do not run Steps 4-7 or render any widgets. Reply: "<board name> has no items yet." Then suggest creating items (links to the `task-management` skill) or reviewing the board's setup.
 - **Multi-board partial failure.** If one board in a multi-board request is inaccessible (private, deleted, or 403), do not abort the whole report. Run the full flow for accessible boards, then add a brief "Could not access: <board name(s)>" note at the top of the combined summary with a suggested next step ("ask the owner to share", "remove from request", "pick a different board").
 
 ## Tools Used
