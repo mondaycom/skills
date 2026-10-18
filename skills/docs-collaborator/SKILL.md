@@ -42,11 +42,11 @@ Each block type has a different set of allowed mutations. Picking the wrong oper
 | code | `update_block` | Content and language editable in place |
 | list_item (BULLETED_LIST, NUMBERED_LIST, CHECK_LIST) | `update_block` for content edits; `replace_block` to switch between bulleted / numbered / check | List variant is set on creation |
 | divider | `replace_block` only | No mutable properties |
-| table | `replace_block` only | Row / column count and column widths immutable; table cell content not addressable via API after creation - see "Tables" below |
+| table | `replace_block` only | Row / column count and column widths immutable; table cell content not addressable via API after creation - see "Tables" in `references/rich-content.md` |
 | image | `replace_block` to swap source | URL / asset_id immutable after creation |
 | video | `replace_block` to swap source | raw_url immutable after creation |
 | notice_box | `replace_block` to change theme | theme immutable; content lives in child blocks (see "Notice boxes" in `references/rich-content.md`) |
-| layout | `replace_block` only | Cell content cannot be populated via API at all - see "Layouts" below |
+| layout | `replace_block` only | Cell content cannot be populated via API at all - see "Layouts" in `references/rich-content.md` |
 | BOARD embed, WIDGET embed, DOC embed, GIPHY | `delete_block` only | No public API to create or modify these block types |
 
 **Rendering quirk - list_item + mention via `update_block`.** When adding an inline mention to a list_item that previously contained only text, `update_block` may save the mention blot correctly (data confirms) but some clients can fail to render the pill (text-prefix-before-mention case). Workaround: use `replace_block` with a fresh list_item containing the same delta. Same pattern in a `normal_text` block renders correctly; the quirk appears specific to list_item updates.
@@ -82,7 +82,7 @@ If the user does not name a workspace, fall back to the user's primary workspace
 
 When the user invents a shape ("partner enablement page", "AI readiness snapshot", "Q3 onboarding context"), compose with judgment - sections, tables, notice boxes, embeds - rather than forcing a named template. The differentiators apply to any shape.
 
-**Passive vs active mode.** By default, scaffold with visible slot markers (`_[embed: ...]_`, `_[mention: ...]_`) where embeds and mentions belong. Switch to active mode - wiring real embeds and mentions - when the user refers to items, boards or people by name; resolve names to IDs yourself and state what you picked. Read `references/create-modes.md` before wiring anything: it has the marker formats, escalation triggers, name-to-ID resolution chain and the communication contract.
+**Passive vs active mode.** By default, scaffold with visible slot markers (`_[embed: ...]_`, `_[mention: ...]_`) where embeds and mentions belong. Switch to active mode - wiring real embeds and mentions - when the user refers to items, boards or people by name; resolve names to IDs yourself (if a name is ambiguous, ask once with the top 3 candidates) and state what you picked. Read `references/create-modes.md` before wiring anything: it has the marker formats, escalation triggers, name-to-ID resolution chain and the communication contract.
 
 Markdown notes that matter:
 
@@ -120,7 +120,7 @@ Capture the returned `doc_id`, `object_id`, and `doc_url`. The user wants the UR
 
 ### Step 5: Layer in the rich-content extras
 
-Mentions, live column-value embeds, notice boxes, layouts, and asset images all need a follow-up `update_doc` call. In active mode, wire them now using the resolved IDs from Step 3. In passive mode, leave the slot markers in place - the user fills slots later by naming items. See "Common edit patterns" below.
+Mentions, live column-value embeds, notice boxes, layouts, and asset images all need a follow-up `update_doc` call. In active mode, wire them now using the resolved IDs from Step 3. In passive mode, leave the slot markers in place - the user fills slots later by naming items. See "Common patterns" in `references/delta-format-cheatsheet.md`.
 
 ### Step 6: Confirm and suggest next steps
 
@@ -176,7 +176,7 @@ Reach for the simplest one that does the job:
 - **Change a block's subtype** (paragraph -> H2, bulleted -> numbered, INFO notice -> WARNING notice): `replace_block`. Subtypes are set on creation only.
 - **Insert a block at a precise position:** `create_block` with `after_block_id` set. There is no `before_block_id` operation - to insert at the very top of a doc, the only path is to insert after the doc's first block.
 - **Delete:** `delete_block`. The only path for BOARD / WIDGET / DOC embed / GIPHY blocks.
-- **Comment:** `add_comment` (see "Comments" in `references/rich-content.md`).
+- **Comment:** `add_comment` - HTML body; tag people via `mentions_list`, not `@` in the body (see "Comments" in `references/rich-content.md`).
 - **Rename the doc:** `set_name`.
 
 The full type-to-operation routing lives in `references/block-operations-matrix.md`.
