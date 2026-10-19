@@ -40,11 +40,25 @@ Based on requirements, plan:
 
 ### Step 3: Create the board
 
+**Strongly recommended: build the board in one call with `creationPrompt`.** `create_board` accepts a free-text `creationPrompt`, and monday designs the groups, columns, and labels from it. This is faster and more reliable than building the structure call by call, and avoids the partial boards and duplicate columns that long build sequences leave behind when a call fails midway. Use it for every new board unless the user needs an exact structure the prompt cannot express.
+
 Call `create_board` with:
 - `boardName`: descriptive name
 - `boardKind`: `"public"` (visible to all team members) or `"private"` (visible only to subscribers)
+- `workspaceId` (and `folderId` if the user named one)
+- `creationPrompt`: the design from Step 2 in plain language - what the board tracks, the workflow stages, the fields each item needs (with label sets for Priority, Stage, etc.), and any starter items. For example:
+
+  > A bug tracker for a mobile team. Bugs move through New, Triaged, In Progress, Fixed, Verified. Each bug needs an assignee, a severity (Low, Medium, High, Critical), a due date, steps to reproduce, and the affected platform (iOS, Android, Web). Starter items: Login button unresponsive on Android, Crash when uploading a photo.
+
+**After it returns, call `get_board_info` and compare the board with the design.** Fill only the gaps with Steps 4-6: add a missing column, fix a label set (see "Changing labels on an existing status column"), rename the Name column, or add missing starter items. Do not rebuild the board.
+
+**If `create_board` fails or times out, do not call it again straight away** - the board may already exist. Call `search` for the board name first and only retry if it is not there; re-sending creates duplicate boards.
+
+Without `creationPrompt` you get an empty board; build it with Steps 4-6.
 
 ### Step 4: Create groups
+
+Skip this step if `creationPrompt` already created the groups you need.
 
 Call `create_group` for each workflow stage or category.
 
@@ -80,7 +94,7 @@ Common group patterns:
 
 ### Step 5: Add columns
 
-Call `create_column` for each data field. For each column, specify:
+If you used `creationPrompt`, only add the columns `get_board_info` shows are missing. Otherwise, call `create_column` for each data field. For each column, specify:
 - `boardId`: the board ID from Step 3
 - `title`: the display name
 - `columnType`: the monday.com column type (see Column Type Selection below)
@@ -141,7 +155,7 @@ Changing the color of an existing label is not supported: the call reports succe
 
 ### Step 6: Seed initial items (optional)
 
-If the user provides initial items, call `create_item` for each one. Follow the column value formatting rules from the task-management skill.
+If the user provides initial items and the board does not have them yet, create them in one `create_items` call (up to 20 per call) rather than one `create_item` per item. Follow the column value formatting rules from the task-management skill.
 
 ### Step 7: Present the result
 
@@ -254,14 +268,14 @@ If the user is unsure of their plan, just create the board with standard columns
 
 ## Tools Used
 
-- `search` - preflight check for board name collisions before `create_board`
+- `search` - preflight check for board name collisions before `create_board`, and checking whether a failed `create_board` created the board anyway
 - `get_column_type_info` - understand available column types and their schemas (including the `columnSettings` shape for status columns)
-- `create_board` - create the board
+- `create_board` - create the board, preferably with `creationPrompt` so monday builds the structure in one call
 - `create_group` - add groups to the board
 - `create_column` - add columns with correct types and custom `columnSettings` for Priority / Severity / Stage / Risk / etc.
 - `update_column` - change labels on an existing status column (full label list, existing ids)
 - `get_board_info` - read a column's `revision` and current labels before `update_column`
-- `create_item` - seed initial items (optional)
+- `create_items` - seed initial items in one call (optional)
 - `create_view_table` - saved table views with filters (optional)
 - `all_monday_api` - delete the default `topics` group, rename or reorder groups (`update_group`), and rename the Name column (`change_column_title`)
 
