@@ -1,0 +1,36 @@
+name: Skill size
+
+# Some clients load only the start of a large skill (Google Antigravity loads
+# the first 24,000 bytes of SKILL.md), so anything past the limit is silently
+# dropped. Keep every SKILL.md under it; move detail into references/.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  skill-size:
+    name: SKILL.md size limit
+    runs-on: ubuntu-latest
+    env:
+      MAX_BYTES: 24000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check SKILL.md sizes
+        run: |
+          status=0
+          for file in skills/*/SKILL.md; do
+            size=$(wc -c < "$file")
+            if [ "$size" -gt "$MAX_BYTES" ]; then
+              echo "::error file=$file::$file is $size bytes, over the $MAX_BYTES-byte limit. Move reference detail into references/."
+              status=1
+            else
+              echo "ok  $file ($size / $MAX_BYTES bytes)"
+            fi
+          done
+          exit $status
