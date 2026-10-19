@@ -15,7 +15,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # Docs Collaborator
@@ -72,7 +72,7 @@ If the user does not name a workspace, fall back to the user's primary workspace
 
 ### Step 3: Compose the body - shapes are examples, not boundaries
 
-`create_doc` takes a `markdown` parameter that is parsed into blocks on import. This is the most efficient way to scaffold a doc in one call. Reach for one of these common shapes as a starting point when the user names a use case, then extend freely:
+`create_doc` takes a `markdown` parameter that is parsed into blocks on import. Keep it to a few sections; append long bodies with `add_markdown_content` (see `references/errors.md`). Reach for one of these common shapes as a starting point when the user names a use case, then extend freely:
 
 - **Meeting notes:** title, date, attendees (with `@mentions`), agenda bullets, decisions, action items table, follow-ups.
 - **Weekly update:** highlights, key metrics, risks, next-week plan.

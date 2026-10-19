@@ -10,7 +10,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.1"
+  version: "0.2.0"
 ---
 
 # Task Management
@@ -154,10 +154,17 @@ Quick reference for the most common types:
 {"timeline_column_id": {"from": "2025-06-01", "to": "2025-06-30"}}
 ```
 
-**Checkbox** - Use `{"checked": "true"}` or `{"checked": "false"}` (string, not boolean):
+**Link** - Use `{"url": "...", "text": "..."}`; `text` is required (repeat the URL if there is no label):
+```json
+{"link_column_id": {"url": "https://example.com", "text": "Example"}}
+```
+
+**Checkbox** - Use `{"checked": "true"}`; to uncheck, `{"checked": "false"}` or `null`. A bare `true` / `false` fails:
 ```json
 {"checkbox_column_id": {"checked": "true"}}
 ```
+
+Email, phone, and link fail as plain strings - always send the object.
 
 ### Multiple columns at once
 
@@ -189,9 +196,11 @@ To add a comment or update to an item, call `create_update` with:
 
 **Reassign:** Get the new person's user ID from `list_users_and_teams`, then call `change_item_column_values` with the people column format.
 
-**Batch updates:** When updating multiple items, call `change_item_column_values` for each item. There is no batch endpoint.
+**Batch creates and updates:** Use `create_items` (up to 20 items per call; each item picks its own group, parent, or template item) and `update_items` (up to 40 updates per call, can span boards). Each entry succeeds or fails on its own, so read the per-item results and retry only the failed entries. Use `create_item` / `change_item_column_values` for single items.
 
-**Move to group:** The MCP toolkit has no direct "move item" tool (`move_object` is for boards/folders/overviews, not items). Use `all_monday_api` with the `move_item_to_group` mutation: `mutation { move_item_to_group (item_id: <ID>, group_id: "<GROUP_ID>") { id } }`. Do not use `create_item` with `duplicateFromItemId` for moves - that creates a copy in the new group and leaves the original in place.
+**Move to group:** The MCP toolkit has no direct "move item" tool (`move_object` is for boards/folders/overviews, not items). Use `all_monday_api` with the `move_item_to_group` mutation: `mutation { move_item_to_group (item_id: <ID>, group_id: "<GROUP_ID>") { id } }`. Do not use `create_item` with `duplicateFromItemId` for moves - that creates a copy and leaves the original in place.
+
+**Duplicate items into another group:** `create_items` with `duplicateFromItemId` ignores `groupId` - the copy always lands in the source item's group. Duplicate first, then move each copy with `move_item_to_group`. The duplicate response reports the name as "<original> (copy)" even when your new name was applied, so read the item back before telling the user its name.
 
 ## Smart Defaults
 
@@ -203,11 +212,16 @@ When the user doesn't specify all values:
 ## Bulk Operations
 
 When creating or updating 5+ items in one request:
+- Batch them with `create_items` / `update_items` instead of one call per item
 - Process all items, then present a count summary and a link to the board
 - Don't list every individual item - say "Created 12 items on the Marketing board" with the board URL
 - If any items fail, report the failure count and reasons separately
 
 For bulk **destructive** operations (3+ updates that could be hard to reverse), confirm with the user before executing.
+
+**Bulk subitems on a board with no subitems yet.** The subitems board is created lazily on the first subitem, and a batch sent before it exists fails intermittently with missing-column errors. Create the first subitem alone with `create_item` (`parentItemId`), call `get_board_info` on the subitems board to get its column IDs, then batch the rest with `create_items`.
+
+**Dropdown and status labels in bulk.** Reuse the exact existing label strings from `get_board_info`. Only set `createLabelsIfMissing: true` when the user wants a genuinely new label. For **dropdown** columns, a new label in a batch is created once per entry: three entries with `createLabelsIfMissing: true` and the new label "Beta" leave three "Beta" labels on the column. Create one item with the new label first, then batch the rest without `createLabelsIfMissing` (the label now exists). Status columns do not duplicate this way, but still send each new label spelled the same in every entry.
 
 ## Error Prevention and Remediation
 
@@ -223,6 +237,10 @@ When an MCP call fails, do not pass the raw error through. Diagnose and propose 
 - "Person ID 12345 is not in your account. Want me to list available users so you can pick the right one?"
 - "Permission denied on this board - it is private and you are not subscribed. Want me to ask the owner to add you, or pick a different board?"
 
+**Write tool fails while reads work.** If a write tool (`create_item`, `create_items`, `update_items`, `change_item_column_values`, `create_column`, `create_board`) is missing from the tool list, or returns "Resource not found", `USER_UNAUTHORIZED`, or 403 on a board you just read successfully, retry the same call once. If it fails again, stop - do not loop or try other write tools against the same board. Tell the user the connector session lost write access, ask them to disconnect and reconnect the monday.com connector, and offer to report it with `submit_bug_or_feature_request`.
+
+**Expected boards are missing or the workspace looks empty.** Call `get_user_context` and tell the user which account they are connected to. Users with the same email on several monday accounts are often connected to the wrong one; reconnecting and picking the right account fixes it.
+
 ## Tools Used
 
 - `get_user_context` - find user's boards
@@ -231,10 +249,13 @@ When an MCP call fails, do not pass the raw error through. Diagnose and propose 
 - `get_column_type_info` - detailed column type schema and validation rules
 - `get_board_items_page` - find items by name or filter
 - `create_item` - create new items or subitems
+- `create_items` - create up to 20 items or subitems in one call
 - `change_item_column_values` - update column values on existing items
+- `update_items` - update up to 40 items in one call, across boards
 - `create_update` - add comments to items
 - `all_monday_api` - for the `move_item_to_group` mutation when moving items between groups
 - `list_users_and_teams` - look up user IDs for people columns
+- `submit_bug_or_feature_request` - report a write tool that keeps failing after a retry
 - `show-assign` (selectively) - person-picker widget when user is choosing from many teammates
 
 ## Additional Resources
