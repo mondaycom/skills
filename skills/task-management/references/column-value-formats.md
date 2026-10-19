@@ -14,6 +14,13 @@ Sets the status label. Use the exact label string from the board's status column
 
 Common labels: "Working on it", "Done", "Stuck", "Not Started". Labels are case-sensitive and board-specific.
 
+By label index instead of text:
+```json
+{"status_column_id": {"index": 1}}
+```
+
+The label must already exist on the column. To add a missing label while writing, set `createLabelsIfMissing: true` on the `create_items` / `update_items` entry.
+
 ## Date
 
 Sets a date value. Format: `YYYY-MM-DD`.
@@ -57,7 +64,12 @@ Team:
 {"person_column_id": {"personsAndTeams": [{"id": 98765, "kind": "team"}]}}
 ```
 
-Get valid user/team IDs from `list_users_and_teams`.
+AI agent (use the agent's user id, never `kind: "person"`):
+```json
+{"person_column_id": {"personsAndTeams": [{"id": 55555, "kind": "agent"}]}}
+```
+
+Get valid user/team/agent IDs from `list_users_and_teams`.
 
 ## Text
 
@@ -91,7 +103,7 @@ Object with email address and display text.
 {"email_column_id": {"email": "user@example.com", "text": "Contact"}}
 ```
 
-The `text` field controls the display label. If omitted, the raw email is shown.
+The `text` field controls the display label. If unsure, repeat the email address. **A plain string (`"user@example.com"`) fails** - always send the object.
 
 ## Phone
 
@@ -101,7 +113,7 @@ Object with phone number and country code.
 {"phone_column_id": {"phone": "+15551234567", "countryShortName": "US"}}
 ```
 
-The `countryShortName` is the ISO 3166-1 alpha-2 code. Include country code in the phone number.
+The `phone` value is digits only with an optional leading `+` - no spaces, dashes, or parentheses. `countryShortName` is the uppercase ISO 3166-1 alpha-2 code. **A plain string fails** - always send the object.
 
 ## Link
 
@@ -125,7 +137,21 @@ Multiple options:
 {"dropdown_column_id": {"labels": ["Frontend", "Backend"]}}
 ```
 
-Use exact label strings from the column's settings (returned by `get_board_info`).
+Use exact label strings from the column's settings (returned by `get_board_info`), or label IDs:
+
+```json
+{"dropdown_column_id": {"ids": [1]}}
+```
+
+Always an array, even for one value. `{"label": "High Priority"}` (single object) is rejected.
+
+## Connect Boards (board relation)
+
+IDs of the linked items on the connected board.
+
+```json
+{"board_relation_column_id": {"item_ids": [12345, 67890]}}
+```
 
 ## Checkbox
 
@@ -166,8 +192,10 @@ Country code and name.
 Geographic location.
 
 ```json
-{"location_column_id": {"lat": 40.7128, "lng": -74.0060, "address": "New York, NY"}}
+{"location_column_id": {"lat": "40.7128", "lng": "-74.0060", "address": "New York, NY"}}
 ```
+
+`lat` and `lng` are required and must be strings. An address alone fails.
 
 ## World Clock
 
@@ -237,6 +265,8 @@ Or for object-type columns:
 3. **Missing nested structure** - Status requires `{"label": "..."}`, not just `"Done"`. Date requires `{"date": "..."}`, not just `"2025-06-15"`.
 4. **Invalid person ID** - Always verify user IDs with `list_users_and_teams` before assigning.
 5. **Incorrect number format** - Numbers must be strings: `"42"` not `42`.
+6. **Plain strings for email or phone** - Both need their object form (`{"email", "text"}`, `{"phone", "countryShortName"}`).
+7. **Double-encoded JSON** - `columnValues` is a JSON object serialized once as a string, not a JSON string of a JSON string.
 
 ## Plan-tier note
 
