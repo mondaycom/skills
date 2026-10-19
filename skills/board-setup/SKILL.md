@@ -46,11 +46,20 @@ Call `create_board` with:
 - `boardName`: descriptive name
 - `boardKind`: `"public"` (visible to all team members) or `"private"` (visible only to subscribers)
 - `workspaceId` (and `folderId` if the user named one)
-- `creationPrompt`: the design from Step 2 in plain language - what the board tracks, the workflow stages, the fields each item needs (with label sets for Priority, Stage, etc.), and any starter items. For example:
+- `creationPrompt`: the design from Step 2 in plain language - what the board tracks, the workflow stages, the fields each item needs (with label sets for Priority, Stage, etc.), and any starter items. **Leave automations out of the prompt** - they are not created from it. Add each one afterwards with `create_automation` and verify it with `list_automations`. For example:
 
   > A bug tracker for a mobile team. Bugs move through New, Triaged, In Progress, Fixed, Verified. Each bug needs an assignee, a severity (Low, Medium, High, Critical), a due date, steps to reproduce, and the affected platform (iOS, Android, Web). Starter items: Login button unresponsive on Android, Crash when uploading a photo.
 
-**After it returns, call `get_board_info` and compare the board with the design.** Fill only the gaps with Steps 4-6: add a missing column, fix a label set (see "Changing labels on an existing status column"), rename the Name column, or add missing starter items. Do not rebuild the board.
+**After it returns, verify the board against the design - `creationPrompt` gets most of it right but not all.** Call `get_board_info`, `get_board_items_page` (with `includeColumns: true`), and `list_automations`, then check:
+
+1. **Group order and `top_group`.** Groups can come back out of order, with a terminal group such as "Done" on top - and new items land in `top_group`. Reorder with `update_group` (`relative_position_before`, see Step 4) so the first workflow stage is on top.
+2. **Column types.** A field can come back as a different type (e.g. a website as `text` instead of `link`). Add a column of the right type with `create_column`, copy any values over, and tell the user the old column can be deleted.
+3. **Labels.** Fix a wrong or missing label set (see "Changing labels on an existing status column").
+4. **Starter items.** Check every value you asked for - some can be left blank. Fill the gaps in one `update_items` call.
+5. **Unrequested automations.** `create_board` can add automations nobody asked for, such as monday AI "categorize" rules on a dropdown, which run on every new item and use AI credits. Tell the user what was added and offer to turn each one off; workflows can be deactivated with `manage_automations`, but some cannot be changed through the API - point the user to the board's Automations panel for those.
+6. **The Name column title** - rename it if the design calls for "Deal", "Account", etc.
+
+Fill only the gaps with Steps 4-6. Do not rebuild the board. Tell the user in one line what you corrected.
 
 **If `create_board` fails or times out, do not call it again straight away** - the board may already exist. Call `search` for the board name first and only retry if it is not there; re-sending creates duplicate boards.
 
@@ -224,7 +233,7 @@ Most column types work on every monday plan. Two are gated and the skill should 
   - A `numbers` column the user updates manually
   - A `text` column with a calculated value the user pastes from elsewhere
   - Adding the formula calculation to a docs/dashboards skill output instead
-- **AI / Automation features at the board level** - some are tier-gated. If the user asks the skill to set up an automation, redirect them to the monday automation UI rather than promising it via the plugin.
+- **AI / Automation features at the board level** - some are tier-gated. Create automations with `create_automation`, one trigger per call, and read each back with `list_automations` to confirm the trigger and conditions match the request. If the call is rejected because of the plan or trial, say automations need a paid plan and point the user to the board's Automations panel.
 
 If the user is unsure of their plan, just create the board with standard columns first and offer to add formula columns later if their plan supports it.
 
@@ -277,6 +286,11 @@ If the user is unsure of their plan, just create the board with standard columns
 - `get_board_info` - read a column's `revision` and current labels before `update_column`
 - `create_items` - seed initial items in one call (optional)
 - `create_view_table` - saved table views with filters (optional)
+- `get_board_items_page` - check starter-item values after `creationPrompt`
+- `update_items` - fill starter-item values the generated board left blank
+- `create_automation` - add each requested automation after the board exists
+- `list_automations` - verify new automations and spot unrequested ones `create_board` added
+- `manage_automations` - deactivate an unrequested or wrong automation
 - `all_monday_api` - delete the default `topics` group, rename or reorder groups (`update_group`), and rename the Name column (`change_column_title`)
 
 ## Additional Resources

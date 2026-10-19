@@ -68,7 +68,7 @@ If they change something, adjust and build. Do not re-confirm after small change
 ### Step 4: Create the board
 
 1. **Check for a name collision.** Call `search` with the board name. If a board with that name exists, ask whether to use it or create the new one with a different name.
-2. **Call `create_board`** with `boardName`, `boardKind: "public"` (or `"private"` if the user asked), the workspace from Step 1, and a `creationPrompt` that describes the board in plain language: what it tracks, the workflow stages, the fields each item needs, and the starter items. Write the prompt from the agreed proposal, for example:
+2. **Call `create_board`** with `boardName`, `boardKind: "public"` (or `"private"` if the user asked), the workspace from Step 1, and a `creationPrompt` that describes the board in plain language: what it tracks, the workflow stages, the fields each item needs, and the starter items. Leave the automation out - it is not created from the prompt; Step 6 adds it. Write the prompt from the agreed proposal, for example:
 
    > A launch tracker for a marketing team planning a Q4 product launch. Work moves through To Do, In Progress, In Review, Done. Each task needs an owner, a due date, and a priority (Low, Medium, High, Critical). Starter tasks: Finalize messaging, Launch landing page, Partner email, Launch day checklist.
 
@@ -76,10 +76,12 @@ If they change something, adjust and build. Do not re-confirm after small change
 
 ### Step 5: Check the result, fill gaps, and show the board
 
-Call `get_board_info` on the new board. Compare it with what you proposed:
+`creationPrompt` gets most of the board right but not all. Call `get_board_info`, `get_board_items_page` (`includeColumns: true`), and `list_automations`, and compare with what you proposed:
 
-- **Columns** - if a key field from the proposal is missing (e.g. no owner or due date column), add it with `create_column`. Do not rebuild the board.
-- **Items** - if the starter items are missing, create them in one `create_items` call, following the task-management column formats. Assign them to the current user only if they agreed.
+- **Group order** - if a later or terminal group (e.g. "Done") is on top, new items land there. Move the first workflow stage to the top with `all_monday_api`: `update_group(board_id, group_id, group_attribute: relative_position_before, new_value: "<current top group id>") { id }`.
+- **Columns** - if a key field is missing or has the wrong type (e.g. a website as `text` instead of `link`), add it with `create_column`. Do not rebuild the board.
+- **Items** - if starter items are missing, create them in one `create_items` call; if values you asked for are blank, fill them in one `update_items` call. Follow the task-management column formats. Assign items to the current user only if they agreed.
+- **Unrequested automations** - `create_board` can add automations nobody asked for (e.g. monday AI "categorize" rules that use AI credits). Mention them in one line and offer to turn them off.
 
 If a write tool fails after a successful read, follow the task-management rule: retry once, then stop and ask the user to reconnect the connector. Do not keep rebuilding.
 
@@ -130,6 +132,9 @@ Pick the one that fits the board, using its real column, label, and group names:
 - `search` - board name collision check, and checking whether a failed `create_board` actually created the board
 - `create_board` - build the board from a `creationPrompt`
 - `get_board_info` - read back the generated columns, groups, and labels
+- `get_board_items_page` - check the starter items' values
+- `all_monday_api` - reorder groups (`update_group`) when the first stage is not on top
+- `update_items` - fill starter-item values the generated board left blank
 - `create_column` - add a key column the generated board is missing
 - `create_items` - add the starter items if the generated board does not have them
 - `create_automation` - create the starter automation
