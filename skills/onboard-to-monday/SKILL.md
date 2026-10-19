@@ -11,7 +11,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # Onboard to monday.com
@@ -74,7 +74,7 @@ If they change something, adjust and build. Do not re-confirm after small change
 
 3. **If `create_board` fails or times out, do not call it again straight away** - the board may have been created. Call `search` for the board name first, and only retry if it does not exist. Re-sending creates duplicate boards.
 
-### Step 5: Check the result and fill gaps
+### Step 5: Check the result, fill gaps, and show the board
 
 Call `get_board_info` on the new board. Compare it with what you proposed:
 
@@ -82,6 +82,8 @@ Call `get_board_info` on the new board. Compare it with what you proposed:
 - **Items** - if the starter items are missing, create them in one `create_items` call, following the task-management column formats. Assign them to the current user only if they agreed.
 
 If a write tool fails after a successful read, follow the task-management rule: retry once, then stop and ask the user to reconnect the connector. Do not keep rebuilding.
+
+**Show the board right away.** As soon as the columns and starter items are in place, call `show-table` with the new board's `boardId` so the user sees their board as an interactive table in the chat. Do not pass `filters`; show the whole board. Add one short line, e.g. "Here's your board - adding a starter automation next." Do not wait for the automation step. If `show-table` is unavailable or fails, share the board URL from the tool response instead and continue.
 
 ### Step 6: Add the starter automation
 
@@ -94,14 +96,13 @@ Ask before creating it (it can be part of the Step 3 confirmation).
 
 ### Step 7: Hand over with a first win
 
-1. **Show the board.** Call `show-table` with the new board's `boardId` so the user sees their board - with their starter items - as an interactive table right in the chat. Do not pass `filters`; show the whole board.
-2. **Summarize in a few lines** below the table: what was built, the automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already shows them.
-3. **Give one concrete thing to try right now,** phrased as something they can just say, using one of their own items:
+The board is already on screen from Step 5 - do not call `show-table` again here.
+
+1. **Summarize in a few lines:** what was built, the automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already shows them. (If `show-table` failed in Step 5, list the starter items here instead.)
+2. **Give one concrete thing to try right now,** phrased as something they can just say, using one of their own items:
    - "Try it: say **mark Finalize messaging as done**."
 
    When they do, make the change (task-management skill), then call `show-table` again so they see the board update.
-
-If `show-table` is unavailable or fails, skip it and list the starter items in plain text with the board URL instead.
 
 Then offer, briefly, the habits that bring people back:
 
@@ -134,4 +135,4 @@ Pick the one that fits the board, using its real column, label, and group names:
 - `create_automation` - create the starter automation
 - `list_automations` - verify the automation's trigger and conditions
 - `manage_automations` - deactivate an automation that was created wrong
-- `show-table` - display the new board as an interactive table, and again after the user's first change
+- `show-table` - display the new board as soon as its items exist (Step 5), and again after the user's first change
