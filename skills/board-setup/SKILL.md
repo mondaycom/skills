@@ -10,7 +10,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Board Setup
@@ -52,6 +52,15 @@ Call `create_group` for each workflow stage or category.
 
 **Clean up the default group at the end.** Once your workflow groups exist, the default `topics` group is a leftover empty group that confuses users. Delete it by calling `all_monday_api` with the `delete_group` mutation: `mutation { delete_group(board_id: <id>, group_id: "topics") { id } }`. Skipping this leaves the board with a dangling empty group below the workflow.
 
+**Rename or reorder groups** with the `update_group` mutation through `all_monday_api` (there is no `change_group_title` mutation, and `update_group` needs a selection set or it fails):
+
+- Rename: `mutation { update_group(board_id: <id>, group_id: "<group_id>", group_attribute: title, new_value: "New name") { id title } }`
+- Move above another group: `group_attribute: relative_position_before, new_value: "<other_group_id>"` (or `relative_position_after`), selecting `{ id position }`.
+
+Renaming the default `topics` group into your first workflow group is an alternative to deleting it.
+
+`create_group` only accepts the exact hex values listed in its `groupColor` enum - a similar shade is rejected.
+
 Common group patterns:
 
 **By workflow stage** (most common):
@@ -84,6 +93,8 @@ Call `create_column` for each data field. For each column, specify:
 4. Priority column (if needed)
 5. Additional data columns (text, numbers, links, etc.)
 
+**Renaming the Name (first) column.** `update_column` rejects title changes on the `name` column ("Name columns can only be updated with the width parameter"). Use `all_monday_api` instead: `mutation { change_column_title(board_id: <id>, column_id: "name", title: "Task") { id title } }`. This is how to label it "Deal", "Bug", "Request", etc. to match the template.
+
 #### Custom labels for status columns
 
 `status` columns created without `columnSettings` always get the default monday labels: "Working on it" (orange), "Done" (green), "Stuck" (red). That is fine for the primary workflow Status column, but it is wrong for any other status column the template needs - Priority, Severity, Stage, and Risk all end up with confusing default labels unless you pass custom ones at creation time.
@@ -97,7 +108,7 @@ Pass `columnSettings` as a JSON string with the shape:
 Each entry needs `label`, `color`, and `index` (other fields are optional). The `color` token is a string from monday's StatusColumnColors enum. Useful tokens by category:
 
 - Calm / low: `sky`, `bright_blue`, `aquamarine`, `saladish`
-- Mid / progress: `working_orange`, `orange`, `egg_yolk`, `purple`
+- Mid / progress: `working_orange`, `egg_yolk`, `purple`
 - High / warning: `dark_orange`, `sunset`, `lipstick`
 - Critical / blocked: `stuck_red`, `dark_red`, `bright_green` (only for "approved")
 - Done / success: `done_green`, `grass_green`
@@ -112,6 +123,21 @@ Each entry needs `label`, `color`, and `index` (other fields are optional). The 
 If the user requests a status column whose meaning is not workflow ("Priority", "Severity", "Risk", "Stage", "Health", "Confidence", etc.), default to a Low/Medium/High/Critical scale unless they tell you the labels they want. State the defaults you used so they can override.
 
 For the primary workflow Status column, leave `columnSettings` off - the defaults match what most users expect.
+
+**Shape and colors.** Send the flat `{"labels": [...]}` object. `get_column_type_info` shows the schema wrapped in a `settings` key - do not copy that wrapper: `create_column` tolerates it, `update_column` rejects it. `color` must be a token from the list above (or its numeric value); hex codes like `#00c875` are rejected.
+
+**If `create_column` with custom labels returns INTERNAL_SERVER_ERROR,** do not resend the same payload. Create the column without `columnSettings`, then set the labels with `update_column` (below).
+
+#### Changing labels on an existing status column
+
+`update_column` replaces the column's whole label list:
+
+1. Call `get_board_info` with `filters.columns.ids` for the column to get its `revision` and current `settings.labels`.
+2. Send **every label you want to keep**, each with its existing `id`, `label`, `color`, and `index`. **A label you leave out is deleted.**
+3. Add new labels **without** an `id` - an invented id is rejected ("Label ids: 5 do not exist"). A new label may reuse a color that is already taken.
+4. Use the new `revision` from the response for any further update.
+
+Changing the color of an existing label is not supported: the call reports success but the color stays the same. To change a color, tell the user to do it from the column's label editor in monday.
 
 ### Step 6: Seed initial items (optional)
 
@@ -224,6 +250,7 @@ If the user is unsure of their plan, just create the board with standard columns
 - If a column type is rejected (e.g., formula on a non-Pro plan), explain the plan gating and propose an alternative column type.
 - **Detect name collisions before creating.** monday allows two boards with the same name in the same workspace, which is a usability trap. Before calling `create_board`, call `search` with the requested board name scoped to the target workspace. If a board with that name already exists, ask the user: use the existing one, create with a suffix (e.g., "Board Name (2)"), or pick a different name. Skipping this check and creating a duplicate is a fail.
 - If `columnSettings` JSON is malformed, `create_column` returns an error. The label format requires an array of `{label, color, index}` objects, not a name->color map. See "Custom labels for status columns" above.
+- **Date filters in saved views** (`create_view_table` / `update_view_table`) take different values from item filters. Use `between` with two plain `YYYY-MM-DD` dates, `greater_than` / `lower_than` with `"TODAY"`, or `within_the_next` / `within_the_last` with `["DAYS", 7]`. `any_of` with `["EXACT", "<date>"]` is rejected in views, even though `get_column_type_info` guidelines list it - those guidelines are for `get_board_items_page` filters.
 
 ## Tools Used
 
@@ -232,8 +259,11 @@ If the user is unsure of their plan, just create the board with standard columns
 - `create_board` - create the board
 - `create_group` - add groups to the board
 - `create_column` - add columns with correct types and custom `columnSettings` for Priority / Severity / Stage / Risk / etc.
+- `update_column` - change labels on an existing status column (full label list, existing ids)
+- `get_board_info` - read a column's `revision` and current labels before `update_column`
 - `create_item` - seed initial items (optional)
-- `all_monday_api` - delete the default `topics` group after the workflow groups are in place
+- `create_view_table` - saved table views with filters (optional)
+- `all_monday_api` - delete the default `topics` group, rename or reorder groups (`update_group`), and rename the Name column (`change_column_title`)
 
 ## Additional Resources
 

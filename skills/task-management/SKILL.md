@@ -154,10 +154,17 @@ Quick reference for the most common types:
 {"timeline_column_id": {"from": "2025-06-01", "to": "2025-06-30"}}
 ```
 
-**Checkbox** - Use `{"checked": "true"}` or `{"checked": "false"}` (string, not boolean):
+**Link** - Use `{"url": "...", "text": "..."}`; `text` is required (repeat the URL if there is no label):
+```json
+{"link_column_id": {"url": "https://example.com", "text": "Example"}}
+```
+
+**Checkbox** - Use `{"checked": "true"}`; to uncheck, `{"checked": "false"}` or `null`. A bare `true` / `false` fails:
 ```json
 {"checkbox_column_id": {"checked": "true"}}
 ```
+
+Email, phone, and link fail as plain strings - always send the object.
 
 ### Multiple columns at once
 
@@ -191,7 +198,9 @@ To add a comment or update to an item, call `create_update` with:
 
 **Batch creates and updates:** Use `create_items` (up to 20 items per call; each item picks its own group, parent, or template item) and `update_items` (up to 40 updates per call, can span boards). Each entry succeeds or fails on its own, so read the per-item results and retry only the failed entries. Use `create_item` / `change_item_column_values` for single items.
 
-**Move to group:** The MCP toolkit has no direct "move item" tool (`move_object` is for boards/folders/overviews, not items). Use `all_monday_api` with the `move_item_to_group` mutation: `mutation { move_item_to_group (item_id: <ID>, group_id: "<GROUP_ID>") { id } }`. Do not use `create_item` with `duplicateFromItemId` for moves - that creates a copy in the new group and leaves the original in place.
+**Move to group:** The MCP toolkit has no direct "move item" tool (`move_object` is for boards/folders/overviews, not items). Use `all_monday_api` with the `move_item_to_group` mutation: `mutation { move_item_to_group (item_id: <ID>, group_id: "<GROUP_ID>") { id } }`. Do not use `create_item` with `duplicateFromItemId` for moves - that creates a copy and leaves the original in place.
+
+**Duplicate items into another group:** `create_items` with `duplicateFromItemId` ignores `groupId` - the copy always lands in the source item's group. Duplicate first, then move each copy with `move_item_to_group`. The duplicate response reports the name as "<original> (copy)" even when your new name was applied, so read the item back before telling the user its name.
 
 ## Smart Defaults
 
@@ -212,7 +221,7 @@ For bulk **destructive** operations (3+ updates that could be hard to reverse), 
 
 **Bulk subitems on a board with no subitems yet.** The subitems board is created lazily on the first subitem, and a batch sent before it exists fails intermittently with missing-column errors. Create the first subitem alone with `create_item` (`parentItemId`), call `get_board_info` on the subitems board to get its column IDs, then batch the rest with `create_items`.
 
-**Dropdown and status labels in bulk.** Reuse the exact existing label strings from `get_board_info`. Only set `createLabelsIfMissing: true` when the user wants a genuinely new label, and send each new label spelled the same way in every entry - otherwise the batch creates near-duplicate labels.
+**Dropdown and status labels in bulk.** Reuse the exact existing label strings from `get_board_info`. Only set `createLabelsIfMissing: true` when the user wants a genuinely new label. For **dropdown** columns, a new label in a batch is created once per entry: three entries with `createLabelsIfMissing: true` and the new label "Beta" leave three "Beta" labels on the column. Create one item with the new label first, then batch the rest without `createLabelsIfMissing` (the label now exists). Status columns do not duplicate this way, but still send each new label spelled the same in every entry.
 
 ## Error Prevention and Remediation
 

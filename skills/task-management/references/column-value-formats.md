@@ -103,7 +103,7 @@ Object with email address and display text.
 {"email_column_id": {"email": "user@example.com", "text": "Contact"}}
 ```
 
-The `text` field controls the display label. If unsure, repeat the email address. **A plain string (`"user@example.com"`) fails** - always send the object.
+The `text` field controls the display label and is required. If unsure, repeat the email address. **A plain string (`"user@example.com"`) or an object without `text` fails** - always send both fields.
 
 ## Phone
 
@@ -113,15 +113,17 @@ Object with phone number and country code.
 {"phone_column_id": {"phone": "+15551234567", "countryShortName": "US"}}
 ```
 
-The `phone` value is digits only with an optional leading `+` - no spaces, dashes, or parentheses. `countryShortName` is the uppercase ISO 3166-1 alpha-2 code. **A plain string fails** - always send the object.
+The `phone` value is digits only with an optional leading `+` - no spaces, dashes, or parentheses. `countryShortName` is the uppercase ISO 3166-1 alpha-2 code. **Always send the object.** A plain string is not safe: a formatted one like `"+1 (212) 555-1234"` is split on the first space and saved wrong or rejected, and a digits-only one saves with no country.
 
 ## Link
 
-URL with optional display text.
+URL and display text. Both are required.
 
 ```json
 {"link_column_id": {"url": "https://example.com", "text": "Example Site"}}
 ```
+
+A plain URL string or `{"url": "..."}` without `text` fails. If there is no better label, repeat the URL as the `text`.
 
 ## Dropdown
 
@@ -153,15 +155,19 @@ IDs of the linked items on the connected board.
 {"board_relation_column_id": {"item_ids": [12345, 67890]}}
 ```
 
+Some tool descriptions say to call `link_board_items_workflow` first. If that tool is not in your tool list, write `item_ids` directly as above.
+
+**Verify with `linked_item_ids`, not the write response.** The `update_items` response and the raw `text` / `value` fields show `null` for a board relation even when the link saved. Check it with `get_board_items_page` (which lists the linked items) or with `all_monday_api`: `items(ids: [<id>]) { column_values(ids: ["<col>"]) { ... on BoardRelationValue { linked_item_ids } } }`. Do not rewrite a relation because it reads back as `null`.
+
 ## Checkbox
 
-String-based checked state.
+The `checked` key wrapped in an object.
 
 ```json
 {"checkbox_column_id": {"checked": "true"}}
 ```
 
-Use the string `"true"` or `"false"`, not boolean `true`/`false`.
+`{"checked": "true"}` and `{"checked": true}` check the box. To uncheck, send `{"checked": "false"}` or `null`. A bare `true` / `false` without the object is rejected.
 
 ## Rating
 
@@ -265,8 +271,9 @@ Or for object-type columns:
 3. **Missing nested structure** - Status requires `{"label": "..."}`, not just `"Done"`. Date requires `{"date": "..."}`, not just `"2025-06-15"`.
 4. **Invalid person ID** - Always verify user IDs with `list_users_and_teams` before assigning.
 5. **Incorrect number format** - Numbers must be strings: `"42"` not `42`.
-6. **Plain strings for email or phone** - Both need their object form (`{"email", "text"}`, `{"phone", "countryShortName"}`).
-7. **Double-encoded JSON** - `columnValues` is a JSON object serialized once as a string, not a JSON string of a JSON string.
+6. **Plain strings for email, phone, or link** - All three need their object form (`{"email", "text"}`, `{"phone", "countryShortName"}`, `{"url", "text"}`), and `text` is required for email and link.
+7. **Bare booleans for checkbox** - `true` fails; send `{"checked": "true"}`.
+8. **Double-encoded JSON** - `columnValues` is a JSON object serialized once as a string, not a JSON string of a JSON string.
 
 ## Plan-tier note
 

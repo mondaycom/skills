@@ -20,7 +20,7 @@ Visual color-coded labels representing workflow states. The most important colum
 {"labels": [{"label": "Low", "color": "sky", "index": 0}, {"label": "Medium", "color": "working_orange", "index": 1}, {"label": "High", "color": "dark_orange", "index": 2}, {"label": "Critical", "color": "stuck_red", "index": 3}]}
 ```
 
-`label`, `color`, `index` are required for each entry. The `color` token is a string from monday's StatusColumnColors enum; useful tokens by category: `sky` / `bright_blue` / `aquamarine` (low/calm), `working_orange` / `egg_yolk` / `purple` (mid), `dark_orange` / `sunset` / `lipstick` (high), `stuck_red` / `dark_red` (critical), `done_green` / `grass_green` / `bright_green` (success). The platform assigns each label a permanent numeric `id` that may not match `index` - use `index` to control display order, `id` is read-only.
+`label`, `color`, `index` are required for each entry. The `color` token is a string from monday's StatusColumnColors enum; useful tokens by category: `sky` / `bright_blue` / `aquamarine` (low/calm), `working_orange` / `egg_yolk` / `purple` (mid), `dark_orange` / `sunset` / `lipstick` (high), `stuck_red` / `dark_red` (critical), `done_green` / `grass_green` / `bright_green` (success). The platform assigns each label a permanent numeric `id` that may not match `index` - use `index` to control display order. Never invent an `id`: leave it off new labels, and on `update_column` send each existing label's `id` from `get_board_info` (labels you leave out are deleted - see "Changing labels on an existing status column" in `SKILL.md`). Hex colors are rejected; use the tokens.
 
 **Anti-pattern:** Passing labels as a name->color map (`{"Low": "sky", ...}`) - the API rejects this. Must be an array of objects.
 
