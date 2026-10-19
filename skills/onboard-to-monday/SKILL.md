@@ -11,7 +11,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.4.0"
+  version: "0.1.0"
 ---
 
 # Onboard to monday.com
