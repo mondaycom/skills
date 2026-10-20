@@ -3,8 +3,8 @@ name: project-status-report
 description: |
   Generates structured project status reports from monday.com - a customizable AI work
   platform with dedicated products for work management, CRM, dev, service, and campaigns.
-  Surfaces overdue items, blockers,
-  workload distribution, and recent activity across one or more boards.
+  Surfaces overdue items, blockers, workload distribution, and recent activity
+  across one or more boards.
   Use when user asks for "project status", "board summary", "what's overdue",
   "status report", "how's the project going", "weekly update", "board overview",
   "progress update", or "team workload".
