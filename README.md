@@ -54,7 +54,7 @@ cp -r skills/task-management ~/.cursor/skills/
 | `task-management` | Create, update, assign, and comment on items across any board, with correct column-value formatting handled automatically |
 | `project-status-report` | Generate status reports surfacing overdue items, blockers, workload distribution, and recent activity across one or more boards |
 | `board-setup` | Create and configure boards with the right groups, column types, and templates for any workflow |
-| `onboard-to-monday` | First-run onboarding for new users: previews a board tailored to their work as an interactive table, then builds it with starter items and an automation once they confirm |
+| `onboard-to-monday` | First-run onboarding for new users: previews a board tailored to their work as an interactive table, then builds it with starter items, an optional dashboard, and an automation once they confirm |
 | `docs-collaborator` | Read, draft, and update monday docs with live board embeds and user mentions |
 | `forms-builder` | Build WorkForms for intake workflows that capture responses as items on a backing board |
 

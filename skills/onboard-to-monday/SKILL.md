@@ -16,7 +16,7 @@ metadata:
 
 # Onboard to monday.com
 
-Get a brand-new monday.com user from "just connected" to a working board they recognize as their own, in one short conversation. The goal is a first win in minutes: a board built around the user's real work, with real items, one automation, and a clear next action.
+Get a brand-new monday.com user from "just connected" to a working board they recognize as their own, in one short conversation. The goal is a first win in minutes: a board built around the user's real work, with real items, an optional dashboard, one automation, and a clear next action.
 
 The board itself is built by `create_board` with a `creationPrompt` - monday designs the groups and columns from a free-text description. This skill decides *what* to ask for, then checks the result and fills any gaps. Use the **task-management** skill for column value formats and write-failure handling.
 
@@ -50,7 +50,7 @@ Then decide:
 
 **Never describe starter boards as "a starting setup" or a reason to skip onboarding.** Mention them lightly at most - "I see the sample boards monday added when you signed up - let's build one around your actual work" - and continue. A signup template board (e.g. "Travel Expense Tracker") shows what the user picked at signup; use it as a hint in Step 2 and Step 3.
 
-Note the plan tier and trial status for Step 6.
+Note the plan tier and trial status for Steps 6 and 7.
 
 ### Step 2: Build a picture of the user's work
 
@@ -109,7 +109,7 @@ If `show-table-preview` is not in your tool list or fails, present the same prop
 ### Step 4: Create the board
 
 1. **Check for a name collision.** Call `search` with the board name. If a board with that name exists, ask whether to use it or create the new one with a different name.
-2. **Call `create_board`** with `boardName`, `boardKind: "public"` (or `"private"` if the user asked), the workspace from Step 1, and a `creationPrompt` that describes the board in plain language: what it tracks, the workflow stages, the fields each item needs, and the starter items. Leave the automation out - it is not created from the prompt; Step 6 adds it. Write the prompt from the agreed proposal, for example:
+2. **Call `create_board`** with `boardName`, `boardKind: "public"` (or `"private"` if the user asked), the workspace from Step 1, and a `creationPrompt` that describes the board in plain language: what it tracks, the workflow stages, the fields each item needs, and the starter items. Leave the automation out - it is not created from the prompt; Step 7 adds it. Write the prompt from the agreed proposal, for example:
 
    > A launch tracker for a marketing team planning a Q4 product launch. Work moves through To Do, In Progress, In Review, Done. Each task needs an owner, a due date, and a priority (Low, Medium, High, Critical). Starter tasks: Finalize messaging, Launch landing page, Partner email, Launch day checklist.
 
@@ -126,11 +126,44 @@ If `show-table-preview` is not in your tool list or fails, present the same prop
 
 If a write tool fails after a successful read, follow the task-management rule: retry once, then stop and ask the user to reconnect the connector. Do not keep rebuilding.
 
-**Show the real board right away.** As soon as the gaps are fixed, call `show-table` with the new board's `boardId` - always, even though the user saw the Step 3 preview. The preview was a mock-up; this is their live board, and seeing it is the payoff of the build. Do not pass `filters`; show the whole board. Do this before the automation step, not after it.
+**Show the real board right away.** As soon as the gaps are fixed, call `show-table` with the new board's `boardId` - always, even though the user saw the Step 3 preview. The preview was a mock-up; this is their live board, and seeing it is the payoff of the build. Do not pass `filters`; show the whole board. Do this before the dashboard and automation steps, not after them.
 
-Under the table, add one short line with the board URL from the tool response, e.g. "Your Q4 Launch Tracker is live: <url> - adding the starter automation next." If the real board differs from the preview in a way the user would notice (a renamed stage, a missing column you could not add), say so in the same line. If `show-table` is unavailable or fails, share the URL and continue.
+Under the table, add one short line with the board URL from the tool response, e.g. "Your Q4 Launch Tracker is live: <url>." If the real board differs from the preview in a way the user would notice (a renamed stage, a missing column you could not add), say so in the same line. If `show-table` is unavailable or fails, share the URL and continue.
 
-### Step 6: Add the starter automation
+### Step 6: Offer a dashboard
+
+Right after the live board, ask one short question: "Want me to add a dashboard with a few charts so you can see progress at a glance?" If they decline, go to Step 7. Do not build a dashboard without a yes.
+
+**1. Propose 2-4 widgets** that fit the board, using its real column ids from `get_board_info`:
+
+| Widget | When | `create_widget` settings |
+|---|---|---|
+| Status breakdown - `CHART`, pie | always (main status column) | `{"graph_type": "pie", "x_axis_columns": {"<board_id>": ["<status_col>"]}, "y_axis_columns": {"<board_id>": ["default-label-count"]}, "x_axis_group_by": "color", "y_axis_group_by": "default-label-count"}` |
+| Progress - `BATTERY` | the status column has a done label | `{"done_text": "<exact done label>", "battery_data": {"status_column_ids_per_board": {"<board_id>": ["<status_col>"]}}}` |
+| Second breakdown - `CHART`, column | a Priority / Health / Stage column | same as the pie, with `"graph_type": "column"` and that column |
+| Total - `NUMBER` | a numbers column (value, budget, points) | `{"counter_data": {"calculation_type": "columns", "column_ids_per_board": {"<board_id>": ["<numbers_col>"]}, "counter_type": "sum"}, "number_format": "number"}` (`"currency"` with `counter_unit: {"symbol": "$", "direction": "left"}` for money) |
+| Workload - `CHART`, column | people are assigned | `x_axis_columns` the people column, `"x_axis_group_by": "multiple-person"` |
+
+Board ids in widget settings are strings. `done_text` must match the done label exactly (e.g. "Done", "Completed"). Skip a workload chart while the people column is empty. For any other widget, call `all_widgets_schema` for its settings first.
+
+**2. Preview them before building.** Count the board's current items per label (from the Step 5 `get_board_items_page` read) and render each proposed chart with the chart MCP apps - nothing is created yet:
+
+- a pie or column chart: `show-chart` with `type: "pie"` or `"bar"` and `data: [{"name": "<label>", "y": <count>, "color": "<label hex>"}]` - take the colors from the label `hex` values in `get_board_info`;
+- the progress battery: `show-battery` with the same counts, a `color` on every segment;
+- a number widget: state the value in the message (e.g. "Total contract value: $174,000").
+
+Then ask once: "This is what the dashboard would show - build it?" If the user changes the widget list, update it and preview only the changed widgets. If `show-chart` and `show-battery` are unavailable, describe the widgets in a short list instead and ask the same question.
+
+**3. Build after the user confirms.**
+
+1. Call `create_dashboard` with a `name` (e.g. "<board name> Dashboard"), the `workspace_id` from Step 1, and `board_ids: ["<board_id>"]`.
+2. Call `create_widget` for each widget with `parent_container_type: "DASHBOARD"`, `parent_container_id` set to the new dashboard id, `widget_kind`, a short `widget_name`, and the `settings` above.
+3. If one widget fails, retry it once; if it fails again, skip it and say which one. Do not recreate the dashboard.
+4. If `create_dashboard` is rejected because of the plan, say dashboards need a paid plan and continue to Step 7.
+
+Share the dashboard link in one line - `https://<account>.monday.com/overviews/<dashboard_id>`, using the same host as the board URL - and mention it fills in as they add items.
+
+### Step 7: Add the starter automation
 
 Ask before creating it (it can be part of the Step 3 confirmation).
 
@@ -139,11 +172,11 @@ Ask before creating it (it can be part of the Step 3 confirmation).
 3. If `manage_automations` returns `USER_UNAUTHORIZED` for an automation you just created, do not retry - tell the user to turn it off from the board's Automations panel.
 4. If `create_automation` is rejected because of the plan or trial, skip it, mention automations are available on paid plans, and continue. Do not let this block the board.
 
-### Step 7: Hand over with a first win
+### Step 8: Hand over with a first win
 
 The live board is already on screen from Step 5 - do not call `show-table` again here.
 
-1. **Summarize in a few lines:** what was built, the automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already shows them. (If `show-table` failed in Step 5, list the starter items here instead.)
+1. **Summarize in a few lines:** what was built, the dashboard and automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already shows them. (If `show-table` failed in Step 5, list the starter items here instead.)
 2. **Give one concrete thing to try right now,** phrased as something they can just say, using one of their own items:
    - "Try it: say **mark Finalize messaging as done**."
 
@@ -180,8 +213,12 @@ Pick the one that fits the board, using its real column, label, and group names:
 - `update_items` - fill starter-item values the generated board left blank
 - `create_column` - add a key column the generated board is missing
 - `create_items` - add the starter items if the generated board does not have them
+- `show-chart` / `show-battery` - preview the proposed dashboard widgets from the board's current data (Step 6)
+- `create_dashboard` - create the dashboard on the new board, after the user confirms the preview
+- `create_widget` - add each confirmed widget to the dashboard
+- `all_widgets_schema` - settings for any widget not covered by the Step 6 table
 - `create_automation` - create the starter automation
 - `list_automations` - verify the automation's trigger and conditions
 - `manage_automations` - deactivate an automation that was created wrong
 - `show-table-preview` - render the proposed board from mock data before anything is created (Step 3)
-- `show-table` - render the real board right after it is built (Step 5), and again after the user's first change (Step 7)
+- `show-table` - render the real board right after it is built (Step 5), and again after the user's first change (Step 8)
