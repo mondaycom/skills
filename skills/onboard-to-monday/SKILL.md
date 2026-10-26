@@ -35,7 +35,7 @@ Call `get_user_context`. Tell the user, in one line, which account and workspace
 
 **The user asked to be onboarded - honor that.** Run onboarding unless there is strong evidence they already use monday.com for real work. Having boards is not that evidence: new accounts come with boards monday created at signup.
 
-**Ignore starter boards.** A board does not count as real usage if:
+**Ignore starter boards when deciding.** A board does not count as real usage if:
 
 - its name is a starter name such as "My first project", "My first board", "Getting started", "Welcome to monday", or "Start here", or
 - it came from a signup template - check it with `get_board_items_page` (`limit: 10`, no columns): items with generic or sample names ("Project 1", "Task 1", "Item 1"), all created within minutes of each other, and none edited since (`updated_at` close to `created_at`).
@@ -47,8 +47,6 @@ Then decide:
 - **New user** - for example a trial or 1-2 active members, no relevant docs or people, and no boards left once starter boards are excluded: continue with Step 2. If it is unclear, treat the user as new.
 - **Established user** - several signals together: boards with real activity (items edited after they were created, or many items), several active members, relevant docs or people, a paid plan. One board, or a couple of starter boards, is never enough. Do not stop: name one or two of their real boards and offer to set up a new board for work they are not tracking yet, or to help with an existing one - e.g. "You already run Sales Pipeline and Hiring here. Want me to set up a board for something you're not tracking yet, or work on one of those?"
 - **Unexpected account** (the user says it is not the right one, or expected boards are missing): stop and ask them to disconnect and reconnect the monday.com connector, choosing the right account.
-
-**Never describe starter boards as "a starting setup" or a reason to skip onboarding.** Mention them lightly at most - "I see the sample boards monday added when you signed up - let's build one around your actual work" - and continue. Do not use starter or signup template boards to guess what the user wants, and do not suggest their topic - base the proposal only on what you know about the user's work (Step 2).
 
 Note the plan tier and trial status for Steps 6 and 7.
 
