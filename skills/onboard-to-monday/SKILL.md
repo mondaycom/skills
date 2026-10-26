@@ -48,15 +48,13 @@ Then decide:
 - **Established user** - several signals together: boards with real activity (items edited after they were created, or many items), several active members, relevant docs or people, a paid plan. One board, or a couple of starter boards, is never enough. Do not stop: name one or two of their real boards and offer to set up a new board for work they are not tracking yet, or to help with an existing one - e.g. "You already run Sales Pipeline and Hiring here. Want me to set up a board for something you're not tracking yet, or work on one of those?"
 - **Unexpected account** (the user says it is not the right one, or expected boards are missing): stop and ask them to disconnect and reconnect the monday.com connector, choosing the right account.
 
-**Never describe starter boards as "a starting setup" or a reason to skip onboarding.** Mention them lightly at most - "I see the sample boards monday added when you signed up - let's build one around your actual work" - and continue. A signup template board (e.g. "Travel Expense Tracker") shows what the user picked at signup; use it as a hint in Step 2 and Step 3.
+**Never describe starter boards as "a starting setup" or a reason to skip onboarding.** Mention them lightly at most - "I see the sample boards monday added when you signed up - let's build one around your actual work" - and continue. Do not use starter or signup template boards to guess what the user wants, and do not suggest their topic - base the proposal only on what you know about the user's work (Step 2).
 
 Note the plan tier and trial status for Steps 6 and 7.
 
 ### Step 2: Build a picture of the user's work
 
 Use what you already know about the user from this conversation and from earlier conversations or memory, if available: their role, team, company or industry, and what they are working on now (projects, launches, clients, hiring, events).
-
-A signup template board from Step 1 is a hint too: confirm it rather than assume it - "You picked travel expenses when you signed up - is that what you want to track, or something else?"
 
 - **If you know enough** to guess what they would track, go straight to Step 3.
 - **If you know little or nothing,** ask at most three short questions, in one message:
