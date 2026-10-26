@@ -31,18 +31,32 @@ The board itself is built by `create_board` with a `creationPrompt` - monday des
 
 ### Step 1: Confirm this is a new user
 
-Call `get_user_context`.
+Call `get_user_context`. Tell the user, in one line, which account and workspace they are connected to.
 
-- Tell the user, in one line, which account and workspace they are connected to.
-- **New user** (trial or recently created account, few or no boards of their own): continue with Step 2.
-- **Existing user** (the account already has boards they use): do not run onboarding. Say they already have boards set up, name a few of their most relevant ones, and offer to help with those instead (status update, add items, new board).
+**The user asked to be onboarded - honor that.** Run onboarding unless there is strong evidence they already use monday.com for real work. Having boards is not that evidence: new accounts come with boards monday created at signup.
+
+**Ignore starter boards.** A board does not count as real usage if:
+
+- its name is a starter name such as "My first project", "My first board", "Getting started", "Welcome to monday", or "Start here", or
+- it came from a signup template - check it with `get_board_items_page` (`limit: 10`, no columns): items with generic or sample names ("Project 1", "Task 1", "Item 1"), all created within minutes of each other, and none edited since (`updated_at` close to `created_at`).
+
+Check at most two boards this way, so the step stays fast.
+
+Then decide:
+
+- **New user** - for example a trial or 1-2 active members, no relevant docs or people, and no boards left once starter boards are excluded: continue with Step 2. If it is unclear, treat the user as new.
+- **Established user** - several signals together: boards with real activity (items edited after they were created, or many items), several active members, relevant docs or people, a paid plan. One board, or a couple of starter boards, is never enough. Do not stop: name one or two of their real boards and offer to set up a new board for work they are not tracking yet, or to help with an existing one - e.g. "You already run Sales Pipeline and Hiring here. Want me to set up a board for something you're not tracking yet, or work on one of those?"
 - **Unexpected account** (the user says it is not the right one, or expected boards are missing): stop and ask them to disconnect and reconnect the monday.com connector, choosing the right account.
+
+**Never describe starter boards as "a starting setup" or a reason to skip onboarding.** Mention them lightly at most - "I see the sample boards monday added when you signed up - let's build one around your actual work" - and continue. A signup template board (e.g. "Travel Expense Tracker") shows what the user picked at signup; use it as a hint in Step 2 and Step 3.
 
 Note the plan tier and trial status for Step 6.
 
 ### Step 2: Build a picture of the user's work
 
 Use what you already know about the user from this conversation and from earlier conversations or memory, if available: their role, team, company or industry, and what they are working on now (projects, launches, clients, hiring, events).
+
+A signup template board from Step 1 is a hint too: confirm it rather than assume it - "You picked travel expenses when you signed up - is that what you want to track, or something else?"
 
 - **If you know enough** to guess what they would track, go straight to Step 3.
 - **If you know little or nothing,** ask at most three short questions, in one message:
@@ -157,11 +171,11 @@ Pick the one that fits the board, using its real column, label, and group names:
 
 ## Tools Used
 
-- `get_user_context` - account, workspace, plan and trial status, and whether the user already has boards
+- `get_user_context` - account, workspace, plan and trial status, active members, and the user's boards, docs, and people
+- `get_board_items_page` - tell a signup starter board (sample items, never edited) from real usage (Step 1), and check the starter items' values (Step 5)
 - `search` - board name collision check, and checking whether a failed `create_board` actually created the board
 - `create_board` - build the board from a `creationPrompt`
 - `get_board_info` - read back the generated columns, groups, and labels
-- `get_board_items_page` - check the starter items' values
 - `all_monday_api` - reorder groups (`update_group`) when the first stage is not on top
 - `update_items` - fill starter-item values the generated board left blank
 - `create_column` - add a key column the generated board is missing
