@@ -115,7 +115,7 @@ If `show-table-preview` is not in your tool list or fails, present the same prop
 
 3. **If `create_board` fails or times out, do not call it again straight away** - the board may have been created. Call `search` for the board name first, and only retry if it does not exist. Re-sending creates duplicate boards.
 
-### Step 5: Check the result and fill gaps
+### Step 5: Check the result, fill gaps, and show the live board
 
 `creationPrompt` gets most of the board right but not all. Call `get_board_info`, `get_board_items_page` (`includeColumns: true`), and `list_automations`, and compare with what you proposed:
 
@@ -126,9 +126,9 @@ If `show-table-preview` is not in your tool list or fails, present the same prop
 
 If a write tool fails after a successful read, follow the task-management rule: retry once, then stop and ask the user to reconnect the connector. Do not keep rebuilding.
 
-**Tell the user the board is live.** The user already saw the layout in the Step 3 preview, so do not render it again here. In one short line, share the board URL from the tool response and say it matches the preview, e.g. "Your Q4 Launch Tracker is live: <url> - adding the starter automation next." If the real board differs from the preview in a way the user would notice (a renamed stage, a missing column you could not add), say so in the same line.
+**Show the real board right away.** As soon as the gaps are fixed, call `show-table` with the new board's `boardId` - always, even though the user saw the Step 3 preview. The preview was a mock-up; this is their live board, and seeing it is the payoff of the build. Do not pass `filters`; show the whole board. Do this before the automation step, not after it.
 
-If you presented the proposal as text because `show-table-preview` was unavailable, call `show-table` with the new board's `boardId` here instead, without `filters`, so the user still sees the board. If `show-table` is also unavailable, share the URL and continue.
+Under the table, add one short line with the board URL from the tool response, e.g. "Your Q4 Launch Tracker is live: <url> - adding the starter automation next." If the real board differs from the preview in a way the user would notice (a renamed stage, a missing column you could not add), say so in the same line. If `show-table` is unavailable or fails, share the URL and continue.
 
 ### Step 6: Add the starter automation
 
@@ -141,13 +141,13 @@ Ask before creating it (it can be part of the Step 3 confirmation).
 
 ### Step 7: Hand over with a first win
 
-Do not render the board again here - the user saw it in the preview (or in Step 5).
+The live board is already on screen from Step 5 - do not call `show-table` again here.
 
-1. **Summarize in a few lines:** what was built, the automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already showed them. (If neither table rendered, list the starter items here instead.)
+1. **Summarize in a few lines:** what was built, the automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already shows them. (If `show-table` failed in Step 5, list the starter items here instead.)
 2. **Give one concrete thing to try right now,** phrased as something they can just say, using one of their own items:
    - "Try it: say **mark Finalize messaging as done**."
 
-   When they do, make the change (task-management skill), then call `show-table` with the real `boardId` so they see their live board update. This is the first time the real board renders in the chat.
+   When they do, make the change (task-management skill), then call `show-table` again so they see the board update.
 
 Then offer, briefly, the habits that bring people back:
 
@@ -184,4 +184,4 @@ Pick the one that fits the board, using its real column, label, and group names:
 - `list_automations` - verify the automation's trigger and conditions
 - `manage_automations` - deactivate an automation that was created wrong
 - `show-table-preview` - render the proposed board from mock data before anything is created (Step 3)
-- `show-table` - render the real board after the user's first change (Step 7), or in Step 5 if the preview was unavailable
+- `show-table` - render the real board right after it is built (Step 5), and again after the user's first change (Step 7)
