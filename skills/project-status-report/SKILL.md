@@ -176,6 +176,7 @@ Adjust the report based on user requests:
 - **"Overdue items only"** - Skip to Step 4, show only overdue table (use `show-table`)
 - **"Last 30 days"** - Adjust the time range in Step 7
 - **"For my team"** - Filter items by person assignment in Step 3
+- **"As a doc"** - Widgets cannot go into a doc, so build every section as plain text and markdown tables (no `show-chart`, `show-battery` or `show-table`), then hand the result to the `docs-collaborator` skill to write
 
 ## Error Prevention and Remediation
 
