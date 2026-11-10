@@ -12,7 +12,7 @@ description: |
   doc", "add a section to my doc", "edit my doc", "update the doc",
   "comment on a doc", "tag someone in a doc", "embed a status in a doc",
   "show live board data in a doc", "rename a doc", or "show me my docs".
-  Don't use for creating or updating board items (use task-management) or building forms (use forms-builder).
+  Don't use for creating or updating board items (use task-management), a status report from board data (use project-status-report), or building forms (use forms-builder).
 license: MIT
 metadata:
   author: monday.com
