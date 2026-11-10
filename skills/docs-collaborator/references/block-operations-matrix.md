@@ -38,6 +38,8 @@ When matching a read block to a row in this table, normalize on the lowercase ou
 | `DOC` embed | - | `delete_block` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
 | `GIPHY` | - | `delete_block` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
 
+**Rendering quirk - list_item + mention via `update_block`.** When adding an inline mention to a list_item that previously contained only text, `update_block` may save the mention blot correctly (data confirms) but some clients can fail to render the pill (text-prefix-before-mention case). Workaround: use `replace_block` with a fresh list_item containing the same delta. Same pattern in a `normal_text` block renders correctly; the quirk appears specific to list_item updates.
+
 ## update_block - the in-place edit path
 
 Use for content edits on text, code, and list_item blocks where the subtype is staying the same.

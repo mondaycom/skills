@@ -8,10 +8,11 @@ description: |
   Use when user asks for "project status", "board summary", "what's overdue",
   "status report", "how's the project going", "weekly update", "board overview",
   "progress update", or "team workload".
+  Don't use for writing or editing a monday doc (use docs-collaborator).
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.2"
+  version: "0.1.3"
 ---
 
 # Project Status Report

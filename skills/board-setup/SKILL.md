@@ -7,10 +7,11 @@ description: |
   and more. Use when user asks to "create a board", "set up a project", "new board
   for", "build a tracker", "organize my project", "create a board for tracking",
   or "set up a workflow".
+  Don't use for adding or editing items on an existing board (use task-management).
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # Board Setup
