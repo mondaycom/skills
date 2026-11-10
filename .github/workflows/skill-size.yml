@@ -3,8 +3,9 @@ name: Skill size
 # Clients cap how much of a skill they load or accept, so a skill over a limit is silently
 # truncated or rejected. Keep every SKILL.md under the strictest limit; move detail into references/.
 #   - Google Antigravity loads only the first 24,000 bytes of SKILL.md.
-#   - Google's Gemini partner plugin scanner rejects a SKILL.md over 500 lines or with a body
-#     (everything after the frontmatter) of 3,000 words or more.
+#   - Google's Gemini partner plugin scanner rejects a SKILL.md over 500 lines, with a body
+#     (everything after the frontmatter) of 3,000 words or more, or with a description over
+#     1,024 characters (also the Agent Skills spec's cap).
 
 on:
   pull_request:
@@ -22,6 +23,7 @@ jobs:
       MAX_BYTES: 24000
       MAX_LINES: 500
       MAX_WORDS: 3000
+      MAX_DESCRIPTION_CHARS: 1024
     steps:
       - uses: actions/checkout@v4
 
@@ -32,11 +34,13 @@ jobs:
             bytes=$(wc -c < "$file")
             lines=$(wc -l < "$file")
             words=$(awk '/^---$/{n++; next} n>=2' "$file" | wc -w)
-            if [ "$bytes" -gt "$MAX_BYTES" ] || [ "$lines" -gt "$MAX_LINES" ] || [ "$words" -ge "$MAX_WORDS" ]; then
-              echo "::error file=$file::$file is $bytes bytes, $lines lines, $words words (max $MAX_BYTES bytes, $MAX_LINES lines, under $MAX_WORDS words). Move reference detail into references/."
+            # Joined description: inline value or the indented lines of a | or > block. Counts bytes, so stricter for non-ASCII.
+            desc=$(awk '/^---$/{n++; next} n==1 && /^description:/{d=1; sub(/^description: *[|>]?[-+]? */, ""); s=$0; next} n==1 && d && /^[ \t]/{sub(/^[ \t]+/, ""); s = s (s == "" ? "" : " ") $0; next} n==1 {d=0} END{print length(s)}' "$file")
+            if [ "$bytes" -gt "$MAX_BYTES" ] || [ "$lines" -gt "$MAX_LINES" ] || [ "$words" -ge "$MAX_WORDS" ] || [ "$desc" -gt "$MAX_DESCRIPTION_CHARS" ]; then
+              echo "::error file=$file::$file is $bytes bytes, $lines lines, $words words, description $desc chars (max $MAX_BYTES bytes, $MAX_LINES lines, under $MAX_WORDS words, description $MAX_DESCRIPTION_CHARS chars). Move reference detail into references/."
               status=1
             else
-              echo "ok  $file ($bytes bytes, $lines lines, $words words)"
+              echo "ok  $file ($bytes bytes, $lines lines, $words words, description $desc chars)"
             fi
           done
           exit $status
