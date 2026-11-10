@@ -29,3 +29,20 @@ Resolution chain (name -> ID, never ask the user for IDs):
 - Ambiguous match -> ask once with the top 3 candidates; do not silently pick
 
 **Active mode communication contract.** When the skill picks items / users in active mode, always state the choice and the reasoning: "Picked items X, Y, Z because <reason>. Override by naming different items."
+
+## Common doc shapes
+
+Starting points when the user names a use case. Extend freely; they are examples, not boundaries.
+
+- **Meeting notes:** title, date, attendees (with `@mentions`), agenda bullets, decisions, action items table, follow-ups.
+- **Weekly update:** highlights, key metrics, risks, next-week plan.
+- **RFC:** problem, proposed solution, alternatives considered, open questions, decision log.
+- **Runbook:** trigger, prerequisites, numbered procedure, rollback steps, escalation path.
+- **Postmortem:** incident summary, timeline, root cause, what went well, what did not, action items.
+
+## Markdown notes
+
+- Markdown headings (`#`, `##`, `###`) map to LARGE_TITLE / MEDIUM_TITLE / SMALL_TITLE blocks.
+- Markdown tables work and the cells will be populated with the values you put in. **This is the only way to get pre-filled table content.** Cell-level API population after creation is not supported.
+- Markdown images and links work. For asset-based images (uploaded files in monday), use `update_doc` with `create_block` and `block_type: "image"` plus `asset_id` after creation - markdown cannot reference assets.
+- Markdown does not have notice_box, layout, embed, divider-with-spacing, mention, or live column-value syntax. Add those via `update_doc` after the doc is created.

@@ -12,10 +12,11 @@ description: |
   doc", "add a section to my doc", "edit my doc", "update the doc",
   "comment on a doc", "tag someone in a doc", "embed a status in a doc",
   "show live board data in a doc", "rename a doc", or "show me my docs".
+  Don't use for creating or updating board items (use task-management) or building forms (use forms-builder).
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.1"
+  version: "0.2.2"
 ---
 
 # Docs Collaborator
@@ -34,24 +35,13 @@ The platform-native value over a raw markdown editor lives in three things most 
 
 ## Block operation routing - the non-obvious part
 
-Each block type has a different set of allowed mutations. Picking the wrong operation is the #1 cause of "the call succeeded but the doc looks wrong" bugs.
+Each block type has a different set of allowed mutations. Picking the wrong operation is the #1 cause of "the call succeeded but the doc looks wrong" bugs. The short rule:
 
-| Target block type | Use this operation | Why |
-|---|---|---|
-| text (any subtype: NORMAL_TEXT, LARGE_TITLE, MEDIUM_TITLE, SMALL_TITLE, QUOTE) | `update_block` for content edits; `replace_block` to change the subtype (e.g. promote a paragraph to H2) | Subtype is set on creation; `update_block` cannot change it |
-| code | `update_block` | Content and language editable in place |
-| list_item (BULLETED_LIST, NUMBERED_LIST, CHECK_LIST) | `update_block` for content edits; `replace_block` to switch between bulleted / numbered / check | List variant is set on creation |
-| divider | `replace_block` only | No mutable properties |
-| table | `replace_block` only | Row / column count and column widths immutable; table cell content not addressable via API after creation - see "Tables" in `references/rich-content.md` |
-| image | `replace_block` to swap source | URL / asset_id immutable after creation |
-| video | `replace_block` to swap source | raw_url immutable after creation |
-| notice_box | `replace_block` to change theme | theme immutable; content lives in child blocks (see "Notice boxes" in `references/rich-content.md`) |
-| layout | `replace_block` only | Cell content cannot be populated via API at all - see "Layouts" in `references/rich-content.md` |
-| BOARD embed, WIDGET embed, DOC embed, GIPHY | `delete_block` only | No public API to create or modify these block types |
+- **text, code, list_item:** `update_block` edits content; `replace_block` changes a text subtype or list variant, which `update_block` cannot.
+- **divider, table, image, video, notice_box, layout:** `replace_block` only (their properties are immutable after creation).
+- **BOARD, WIDGET and DOC embeds, GIPHY:** `delete_block` only. No public API creates or modifies them.
 
-**Rendering quirk - list_item + mention via `update_block`.** When adding an inline mention to a list_item that previously contained only text, `update_block` may save the mention blot correctly (data confirms) but some clients can fail to render the pill (text-prefix-before-mention case). Workaround: use `replace_block` with a fresh list_item containing the same delta. Same pattern in a `normal_text` block renders correctly; the quirk appears specific to list_item updates.
-
-Full per-block-type detail with worked examples lives in `references/block-operations-matrix.md`. Read it before authoring any non-trivial structural edit.
+Read `references/block-operations-matrix.md` before any structural edit: it has the full routing matrix, a list_item rendering quirk, and example payloads.
 
 ## Workflow: Create a doc
 
@@ -72,24 +62,13 @@ If the user does not name a workspace, fall back to the user's primary workspace
 
 ### Step 3: Compose the body - shapes are examples, not boundaries
 
-`create_doc` takes a `markdown` parameter that is parsed into blocks on import. Keep it to a few sections; append long bodies with `add_markdown_content` (see `references/errors.md`). Reach for one of these common shapes as a starting point when the user names a use case, then extend freely:
-
-- **Meeting notes:** title, date, attendees (with `@mentions`), agenda bullets, decisions, action items table, follow-ups.
-- **Weekly update:** highlights, key metrics, risks, next-week plan.
-- **RFC:** problem, proposed solution, alternatives considered, open questions, decision log.
-- **Runbook:** trigger, prerequisites, numbered procedure, rollback steps, escalation path.
-- **Postmortem:** incident summary, timeline, root cause, what went well, what did not, action items.
+`create_doc` takes a `markdown` parameter that is parsed into blocks on import. Keep it to a few sections; append long bodies with `add_markdown_content` (see `references/errors.md`). When the user names a use case (meeting notes, weekly update, RFC, runbook, postmortem), start from its common shape in `references/create-modes.md`, then extend freely.
 
 When the user invents a shape ("partner enablement page", "AI readiness snapshot", "Q3 onboarding context"), compose with judgment - sections, tables, notice boxes, embeds - rather than forcing a named template. The differentiators apply to any shape.
 
 **Passive vs active mode.** By default, scaffold with visible slot markers (`_[embed: ...]_`, `_[mention: ...]_`) where embeds and mentions belong. Switch to active mode - wiring real embeds and mentions - when the user refers to items, boards or people by name; resolve names to IDs yourself (if a name is ambiguous, ask once with the top 3 candidates) and state what you picked. Read `references/create-modes.md` before wiring anything: it has the marker formats, escalation triggers, name-to-ID resolution chain and the communication contract.
 
-Markdown notes that matter:
-
-- Markdown headings (`#`, `##`, `###`) map to LARGE_TITLE / MEDIUM_TITLE / SMALL_TITLE blocks.
-- Markdown tables work and the cells will be populated with the values you put in. **This is the only way to get pre-filled table content.** Cell-level API population after creation is not supported.
-- Markdown images and links work. For asset-based images (uploaded files in monday), use `update_doc` with `create_block` and `block_type: "image"` plus `asset_id` after creation - markdown cannot reference assets.
-- Markdown does not have notice_box, layout, embed, divider-with-spacing, mention, or live column-value syntax. Add those via `update_doc` after the doc is created.
+**Put table content in the markdown.** A markdown table is the only way to get pre-filled table cells; cells cannot be populated after creation. Markdown has no syntax for notice boxes, layouts, embeds, mentions, live column values or asset images: add those with `update_doc` after the doc is created. Details in "Markdown notes" in `references/create-modes.md`.
 
 ### Step 4: Call `create_doc`
 
@@ -235,36 +214,7 @@ State every default in the response so the user can override.
 
 ## Duplicate detection before writing
 
-**Before any `create_block`, `add_markdown_content`, `add_comment`, or content-replacing `update_block`, compare the proposed content against existing blocks in the doc.** Default to skip + report on match; surface options to the user; never silently duplicate.
-
-Match heuristics by block type:
-
-| Block type | Match heuristic |
-|---|---|
-| text / heading / quote / code | exact delta text + same subtype |
-| list_item | exact text + same list type + adjacency (multi-bullet sections matched as a group) |
-| notice_box | same theme + same child text |
-| table | same dimensions + same cell content |
-| mention | same user_id at same block position |
-| column_value embed | same item_id + column_id at same block position |
-| comment | same body text + same anchor (excluded by default - see below) |
-
-Skill behavior on match found:
-
-1. **Default: skip + report.** "X already exists at <position>. Skipping to avoid duplicate."
-2. **Surface options** (do not silently pick):
-   - **(a) skip** - keep existing, do nothing
-   - **(b) duplicate** - proceed as requested, accept redundancy
-   - **(c) replace** - delete existing, create fresh
-   - **(d) move** - offered only when the new request has explicit positional intent ("at the top / at the bottom / after X") that conflicts with the existing match's position
-
-Exclusions where duplication is normal and detection should NOT trigger:
-
-- **Comments are excluded** except for a short stutter window. Same comment body submitted to the same scope (doc or block) within 60 seconds is almost certainly a double-submit / network retry; beyond that, treat as legitimate (legitimate re-review, sentiment echo).
-- Adjacent same-style blocks in a list - intended structure, not duplication.
-- Repeating section names in different parents (e.g. two "Action Items" H3s under different H2s).
-
-Apply this duplicate-detection rule to every write path in the skill.
+**Before any `create_block`, `add_markdown_content`, `add_comment`, or content-replacing `update_block`, compare the proposed content against existing blocks in the doc.** On a match, skip and report it, then offer the user: skip, duplicate, replace, or move (move only when the request names a position). Never silently duplicate. Comments are excluded except for a repeat within 60 seconds. Read `references/duplicate-detection.md` for the match heuristic per block type and the full exclusions.
 
 ## Surface errors with remediation
 
@@ -305,7 +255,8 @@ Never tell the user "I called `read_docs` then `update_doc` with an `update_bloc
 ## Additional resources
 
 - **`references/block-operations-matrix.md`** - per-block-type allowed operations, gotchas, and example payloads.
-- **`references/create-modes.md`** - passive-scaffold slot markers, active-mode triggers, name-to-ID resolution and the communication contract.
+- **`references/create-modes.md`** - passive-scaffold slot markers, active-mode triggers, name-to-ID resolution, the communication contract, common doc shapes and markdown notes.
+- **`references/duplicate-detection.md`** - match heuristics per block type, what to offer on a match, and when duplication is normal.
 - **`references/rich-content.md`** - tables, notice boxes, layouts, mentions, live column-value embeds and comments.
 - **`references/read-rendering.md`** - how to render mentions, embeds and inline elements when reading a doc.
 - **`references/errors.md`** - common failures and how to remediate them.

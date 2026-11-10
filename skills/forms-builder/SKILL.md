@@ -10,10 +10,11 @@ description: |
   a form", "share a form link", "set up a request form", "add a form to a
   board", "remove the monday branding from my form", or "deactivate the
   form".
+  Don't use for editing the items a form creates (use task-management) or for monday docs (use docs-collaborator).
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.1"
+  version: "0.1.2"
 ---
 
 # Forms Builder
