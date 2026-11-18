@@ -58,6 +58,14 @@ cp -r skills/task-management ~/.cursor/skills/
 | `docs-collaborator` | Read, draft, and update monday docs with live board embeds and user mentions |
 | `forms-builder` | Build WorkForms for intake workflows that capture responses as items on a backing board |
 
+## Tool evidence
+
+Every tool call a skill describes is checked against the code of the monday.com MCP tools.
+[`evidence/`](evidence) holds one file per skill: each claim the skill makes about a tool, with a
+link to the line of code (in [`mondaycom/mcp`](https://github.com/mondaycom/mcp)) or the live tool
+schema that backs it, and the open questions code cannot settle. When you change how a skill uses a
+tool, update its evidence file in the same pull request.
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).

@@ -24,7 +24,7 @@ Visual color-coded labels representing workflow states. The most important colum
 
 **Anti-pattern:** Passing labels as a name->color map (`{"Low": "sky", ...}`) - the API rejects this. Must be an array of objects.
 
-**`is_done` flag:** Each label has an optional `is_done` boolean. Setting `is_done: true` on a label tells reports, automations, and progress widgets that this label means "complete". On user-created boards via the UI, this flag is often left unset on every label including "Done". When creating status columns programmatically and you care about correct progress reporting, set `is_done: true` explicitly on the success label(s).
+**`is_done` flag:** Each label has an optional `is_done` boolean. Setting `is_done: true` on a label tells reports, automations, and progress indicators that this label means "complete". On user-created boards via the UI, this flag is often left unset on every label including "Done". When creating status columns programmatically and you care about correct progress reporting, set `is_done: true` explicitly on the success label(s).
 
 ### people
 
@@ -200,7 +200,7 @@ Reflects data from linked items on other boards.
 
 **Use for:** Cross-board data visibility without duplication.
 
-### connect_boards
+### board_relation (Connect boards)
 
 Links items across different boards.
 
