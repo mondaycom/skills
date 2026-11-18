@@ -109,7 +109,6 @@ Include both the form URL and the backing board URL (`get_board_info` with the `
 End with 2-3 next-step suggestions:
 
 - **"Want the form on a single scrolling page (Classic) instead of one question per screen (OneByOne)?"** - Classic is the better default for most operational and internal forms. Surface this choice every time. The MCP tools cannot change it (see below); the suggestion points the user to Form Settings -> Layout in the monday UI.
-- "Want me to shorten the form URL?"
 - "Should I set a password on the form?"
 - "Should I set a submission limit or close date?"
 - "Want to remove the WorkForms branding? (Pro+ only.)"
