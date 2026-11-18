@@ -11,7 +11,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.3"
+  version: "0.2.4"
 ---
 # Docs Collaborator
 

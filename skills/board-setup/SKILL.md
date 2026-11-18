@@ -11,7 +11,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.3"
+  version: "0.2.4"
 ---
 # Board Setup
 
@@ -195,7 +195,7 @@ Summarize what was created:
 
 Then suggest 2-3 logical next steps:
 - "Want me to add some initial items to get started?"
-- "Should I invite team members to this board?"
+- "Should I add teammates who are already on your account to this board?"
 - "Want me to create a dashboard to track this project?"
 - "Should I set up a form for intake requests?"
 
@@ -249,7 +249,7 @@ For common workflows (project tracker, bug tracker, CRM pipeline, content calend
 - If a column type is rejected (e.g., formula on a non-Pro plan), explain the plan gating and propose an alternative column type.
 - **Detect name collisions before creating.** monday allows two boards with the same name in the same workspace, which is a usability trap. Before calling `create_board`, call `search` with `searchType: "BOARD"` and `searchTerm: "<requested board name>"`, scoped with `workspaceIds: [<target workspace id>]`. If a board with that name already exists, ask the user: use the existing one, create with a suffix (e.g., "Board Name (2)"), or pick a different name. Skipping this check and creating a duplicate is a fail.
 - If `columnSettings` JSON is malformed, `create_column` returns an error. The label format requires an array of `{label, color, index}` objects, not a name->color map. See "Custom labels for status columns" above.
-- **Date filters in saved views** (`create_view_table` / `update_view_table`) take different values from item filters. Use `between` with two plain `YYYY-MM-DD` dates, `greater_than` / `lower_than` with `"TODAY"`, or `within_the_next` / `within_the_last` with `["DAYS", 7]`. `any_of` with `["EXACT", "<date>"]` is rejected in views, even though `get_column_type_info` guidelines list it - those guidelines are for `get_board_items_page` filters.
+- **Date filters in saved views** (`create_view_table`, and `update_view_table` when it is listed) take different values from item filters. Use `between` with two plain `YYYY-MM-DD` dates, `greater_than` / `lower_than` with `"TODAY"`, or `within_the_next` / `within_the_last` with `["DAYS", 7]`. `any_of` with `["EXACT", "<date>"]` is rejected in views, even though `get_column_type_info` guidelines list it - those guidelines are for `get_board_items_page` filters.
 
 ## Tools Used
 
