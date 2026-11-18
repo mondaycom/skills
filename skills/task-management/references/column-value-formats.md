@@ -19,7 +19,7 @@ By label index instead of text:
 {"status_column_id": {"index": 1}}
 ```
 
-The label must already exist on the column. To add a missing label while writing, set `createLabelsIfMissing: true` on the `create_items` / `update_items` entry.
+The label must already exist on the column. To add a missing label while writing, set `createLabelsIfMissing: true` on the `create_item` / `change_item_column_values` call or on the `create_items` / `update_items` entry.
 
 ## Date
 
@@ -147,7 +147,7 @@ Use exact label strings from the column's settings (returned by `get_board_info`
 
 Always an array, even for one value. `{"label": "High Priority"}` (single object) is rejected.
 
-## Connect Boards (board relation)
+## Connect Boards (`board_relation`)
 
 IDs of the linked items on the connected board.
 
@@ -157,7 +157,7 @@ IDs of the linked items on the connected board.
 
 Some tool descriptions say to call `link_board_items_workflow` first. If that tool is not in your tool list, write `item_ids` directly as above.
 
-**Verify with `linked_item_ids`, not the write response.** The `update_items` response and the raw `text` / `value` fields show `null` for a board relation even when the link saved. Check it with `get_board_items_page` (which lists the linked items) or with `all_monday_api`: `items(ids: [<id>]) { column_values(ids: ["<col>"]) { ... on BoardRelationValue { linked_item_ids } } }`. Do not rewrite a relation because it reads back as `null`.
+**Verify with `linked_item_ids`, not `text` / `value`.** The raw `text` / `value` fields show `null` for a board relation even when the link saved. The `change_item_column_values` and `update_items` responses return `linked_item_ids` for the column (a count instead above 1,000 links). To re-check later, use `get_board_items_page` with `includeColumns: true` (which lists the linked items) or `all_monday_api`: `items(ids: [<id>]) { column_values(ids: ["<col>"]) { ... on BoardRelationValue { linked_item_ids } } }` (if a GraphQL query is rejected, check the live schema with `get_graphql_schema` / `get_type_details` if available). Do not rewrite a relation because it reads back as `null`.
 
 ## Checkbox
 
@@ -169,28 +169,12 @@ The `checked` key wrapped in an object.
 
 `{"checked": "true"}` and `{"checked": true}` check the box. To uncheck, send `{"checked": "false"}` or `null`. A bare `true` / `false` without the object is rejected.
 
-## Rating
-
-Integer from 1 to 5 (or the column's configured max).
-
-```json
-{"rating_column_id": {"rating": 4}}
-```
-
 ## Tags
 
 Array of tag IDs.
 
 ```json
 {"tags_column_id": {"tag_ids": [12345, 67890]}}
-```
-
-## Country
-
-Country code and name.
-
-```json
-{"country_column_id": {"countryCode": "US", "countryName": "United States"}}
 ```
 
 ## Location
@@ -203,7 +187,27 @@ Geographic location.
 
 `lat` and `lng` are required and must be strings. An address alone fails.
 
-## World Clock
+## Additional Column Types
+
+> **Note:** The write tools' built-in format guide does not cover the types below (`rating`, `country`, `world_clock`, `week`, `hour`, `color_picker`), and `get_column_type_info` returns settings schemas, not value formats. If a write is rejected, show the user the API error before trying another shape.
+
+### Rating
+
+Integer from 1 to 5 (or the column's configured max).
+
+```json
+{"rating_column_id": {"rating": 4}}
+```
+
+### Country
+
+Country code and name.
+
+```json
+{"country_column_id": {"countryCode": "US", "countryName": "United States"}}
+```
+
+### World Clock
 
 Timezone identifier.
 
@@ -211,7 +215,7 @@ Timezone identifier.
 {"world_clock_column_id": {"timezone": "America/New_York"}}
 ```
 
-## Week
+### Week
 
 Start and end date of a week.
 
@@ -219,7 +223,7 @@ Start and end date of a week.
 {"week_column_id": {"week": {"startDate": "2025-06-09", "endDate": "2025-06-15"}}}
 ```
 
-## Hour
+### Hour
 
 Time value.
 
@@ -227,7 +231,7 @@ Time value.
 {"hour_column_id": {"hour": 14, "minute": 30}}
 ```
 
-## Color Picker
+### Color Picker
 
 Nested hex color object.
 
@@ -253,13 +257,8 @@ Pass all column updates in a single JSON string:
 
 ## Clearing a Column Value
 
-To clear a column, pass an empty string or null:
+To clear any column value, pass `null`:
 
-```json
-{"column_id": ""}
-```
-
-Or for object-type columns:
 ```json
 {"column_id": null}
 ```
@@ -279,5 +278,5 @@ Or for object-type columns:
 
 Most column types are universal (Free / Basic / Standard / Pro / Enterprise). Two are gated:
 
-- **Formula columns** (`formula`): Pro and Enterprise plans only. If the user is on Free / Basic / Standard, the create_column call will fail. Suggest a `numbers` column they update manually, or a downstream calculation in a docs/dashboards skill.
+- **Formula columns** (`formula`): Pro and Enterprise plans only. If the user is on Free / Basic / Standard, the `create_column` call will fail. Suggest a `numbers` column they update manually, or a downstream calculation in a docs/dashboards skill.
 - **Mirror columns** (`mirror`): Available on most paid plans but with caveats. Verify before recommending.

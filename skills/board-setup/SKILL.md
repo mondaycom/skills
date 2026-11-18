@@ -11,9 +11,8 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.2"
+  version: "0.2.3"
 ---
-
 # Board Setup
 
 Create and configure monday.com boards with proper structure - the right column types, meaningful groups, and initial items. In monday.com, a board is the central workspace where a team tracks any workflow: project delivery, sales pipeline, bug triage, content production, event planning, and more. This skill provides the domain knowledge needed to build well-organized boards that match how teams actually work.
@@ -62,7 +61,7 @@ Call `create_board` with:
 
 Fill only the gaps with Steps 4-6. Do not rebuild the board. Tell the user in one line what you corrected.
 
-**If `create_board` fails or times out, do not call it again straight away** - the board may already exist. Call `search` for the board name first and only retry if it is not there; re-sending creates duplicate boards.
+**If `create_board` fails or times out, do not call it again straight away** - the board may already exist. Call `search` with `searchType: "BOARD"` and `searchTerm: "<board name>"` first and only retry if it is not there; re-sending creates duplicate boards.
 
 Without `creationPrompt` you get an empty board; build it with Steps 4-6.
 
@@ -80,6 +79,8 @@ Call `create_group` for each workflow stage or category.
 
 - Rename: `mutation { update_group(board_id: <id>, group_id: "<group_id>", group_attribute: title, new_value: "New name") { id title } }`
 - Move above another group: `group_attribute: relative_position_before, new_value: "<other_group_id>"` (or `relative_position_after`), selecting `{ id position }`.
+
+If any raw GraphQL mutation via `all_monday_api` is rejected, inspect the live GraphQL schema (`get_graphql_schema` / `get_type_details` if available) before retrying.
 
 Renaming the default `topics` group into your first workflow group is an alternative to deleting it.
 
@@ -106,7 +107,7 @@ Common group patterns:
 
 If you used `creationPrompt`, only add the columns `get_board_info` shows are missing. Otherwise, call `create_column` for each data field. For each column, specify:
 - `boardId`: the board ID from Step 3
-- `title`: the display name
+- `columnTitle`: the display name
 - `columnType`: the monday.com column type (see Column Type Selection below)
 - `columnSettings`: JSON-stringified label config when the column needs custom labels (see "Custom labels for status columns" below)
 
@@ -156,12 +157,12 @@ For the primary workflow Status column, leave `columnSettings` off - the default
 
 `update_column` replaces the column's whole label list:
 
-1. Call `get_board_info` with `filters.columns.ids` for the column to get its `revision` and current `settings.labels`.
-2. Send **every label you want to keep**, each with its existing `id`, `label`, `color`, and `index`. **A label you leave out is deleted.**
+1. Call `get_board_info` with `filters.columns.ids` for the column to get its `revision`, `type`, and current `settings.labels`.
+2. Call `update_column` with `boardId`, `columnId`, `columnType` (matching the existing type), `revision`, and **every label you want to keep**, each with its existing `id`, `label`, `color`, and `index`. **A label you leave out is deleted.**
 3. Add new labels **without** an `id` - an invented id is rejected ("Label ids: 5 do not exist"). A new label may reuse a color that is already taken.
 4. Use the new `revision` from the response for any further update.
 
-Changing the color of an existing label is not supported: the call reports success but the color stays the same. To change a color, tell the user to do it from the column's label editor in monday.
+To recolor an existing label, send its existing `id` with the new `color`, then read the column back with `get_board_info` to confirm the change; if the color did not change, tell the user to change it from the column's label editor in monday.
 
 ### Step 6: Seed initial items (optional)
 
@@ -240,39 +241,13 @@ If the user is unsure of their plan, just create the board with standard columns
 
 ## Board Templates by Use Case
 
-### Project Tracker
-- **Groups:** To Do, In Progress, In Review, Done
-- **Columns:** Status, Owner (people), Due Date (date), Priority (status, custom labels Low/Medium/High/Critical), Notes (text)
-
-### Bug Tracker
-- **Groups:** New, Triaged, In Progress, Fixed, Verified
-- **Columns:** Status, Assignee (people), Severity (status, custom labels Low/Medium/High/Critical), Due Date (date), Steps to Reproduce (long_text), Environment (dropdown)
-
-### Sales/CRM Pipeline
-- **Groups:** Lead, Qualified, Proposal, Negotiation, Closed Won, Closed Lost
-- **Columns:** Stage (status, custom labels matching the group names: Lead/Qualified/Proposal/Negotiation/Closed Won/Closed Lost), Owner (people), Company (text), Deal Value (numbers), Close Date (date), Source (dropdown)
-
-### Content Calendar
-- **Groups:** Ideas, In Production, In Review, Published
-- **Columns:** Status, Author (people), Publish Date (date), Content Type (dropdown), Channel (dropdown), Link (link)
-
-### Event Planning
-- **Groups:** Planning, Logistics, Marketing, Day-Of, Post-Event
-- **Columns:** Status, Owner (people), Timeline (timeline), Budget (numbers), Priority (status), Notes (text)
-
-### Sprint Board
-- **Groups:** Backlog, Sprint [current], In Progress, Done
-- **Columns:** Status, Assignee (people), Story Points (numbers), Sprint (dropdown), Due Date (date), Type (status)
-
-### Request/Intake
-- **Groups:** New Requests, Under Review, Approved, In Progress, Completed
-- **Columns:** Status, Requester (people), Assigned To (people), Priority (status), Due Date (date), Request Type (dropdown), Description (long_text)
+For common workflows (project tracker, bug tracker, CRM pipeline, content calendar, event planning, sprint board, request intake), start from the groups and columns in `references/board-templates.md`.
 
 ## Error Prevention and Remediation
 
 - If `create_board` fails due to permissions, suggest using an existing workspace the user has admin access to, or ask which workspace they want to use.
 - If a column type is rejected (e.g., formula on a non-Pro plan), explain the plan gating and propose an alternative column type.
-- **Detect name collisions before creating.** monday allows two boards with the same name in the same workspace, which is a usability trap. Before calling `create_board`, call `search` with the requested board name scoped to the target workspace. If a board with that name already exists, ask the user: use the existing one, create with a suffix (e.g., "Board Name (2)"), or pick a different name. Skipping this check and creating a duplicate is a fail.
+- **Detect name collisions before creating.** monday allows two boards with the same name in the same workspace, which is a usability trap. Before calling `create_board`, call `search` with `searchType: "BOARD"` and `searchTerm: "<requested board name>"`, scoped with `workspaceIds: [<target workspace id>]`. If a board with that name already exists, ask the user: use the existing one, create with a suffix (e.g., "Board Name (2)"), or pick a different name. Skipping this check and creating a duplicate is a fail.
 - If `columnSettings` JSON is malformed, `create_column` returns an error. The label format requires an array of `{label, color, index}` objects, not a name->color map. See "Custom labels for status columns" above.
 - **Date filters in saved views** (`create_view_table` / `update_view_table`) take different values from item filters. Use `between` with two plain `YYYY-MM-DD` dates, `greater_than` / `lower_than` with `"TODAY"`, or `within_the_next` / `within_the_last` with `["DAYS", 7]`. `any_of` with `["EXACT", "<date>"]` is rejected in views, even though `get_column_type_info` guidelines list it - those guidelines are for `get_board_items_page` filters.
 
@@ -282,9 +257,9 @@ If the user is unsure of their plan, just create the board with standard columns
 - `get_column_type_info` - understand available column types and their schemas (including the `columnSettings` shape for status columns)
 - `create_board` - create the board, preferably with `creationPrompt` so monday builds the structure in one call
 - `create_group` - add groups to the board
-- `create_column` - add columns with correct types and custom `columnSettings` for Priority / Severity / Stage / Risk / etc.
-- `update_column` - change labels on an existing status column (full label list, existing ids)
-- `get_board_info` - read a column's `revision` and current labels before `update_column`
+- `create_column` - add columns with `columnTitle`, `columnType`, and custom `columnSettings` for Priority / Severity / Stage / Risk / etc.
+- `update_column` - change labels on an existing status column (`columnType`, `revision`, full label list with existing ids)
+- `get_board_info` - read a column's `revision`, `type`, and current labels before `update_column`
 - `create_items` - seed initial items in one call (optional)
 - `create_view_table` - saved table views with filters (optional)
 - `get_board_items_page` - check starter-item values after `creationPrompt`
@@ -296,4 +271,5 @@ If the user is unsure of their plan, just create the board with standard columns
 
 ## Additional Resources
 
+- **`references/board-templates.md`** - Starting groups and columns for common workflows
 - **`references/column-types-guide.md`** - Complete guide to all monday.com column types, when to use each, and configuration options

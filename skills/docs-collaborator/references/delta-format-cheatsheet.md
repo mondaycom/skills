@@ -5,7 +5,7 @@
 ## The three rules
 
 1. **Always end with `{insert: {text: "\n"}}`.** No exceptions. The terminator is mandatory; the API rejects deltas without it.
-2. **Each operation is one insert.** No update / delete / retain ops. To change content, send a fresh delta_format and the API replaces the entire block content.
+2. **Each operation is one insert.** No update / delete / retain ops. To change content, send a fresh `delta_format` and the API replaces the entire block content.
 3. **Three insert types:**
    - `{insert: {text: "..."}}` - plain or styled text.
    - `{insert: {mention: {id, type}}}` - inline mention of a user, doc, or board.
@@ -35,7 +35,8 @@ Supported attributes (all optional, all apply to text inserts only):
 | `link` | string | URL; the text is the link label |
 | `color` | string | text color (CSS-style or named) |
 | `background` | string | background highlight color |
-| `comments` | array of update IDs | anchors comments to this text insert. Preserve when editing blocks that have existing comments - clean rewrites detach comments. |
+
+> **Important (comment anchors):** The `update_doc` write schema accepts **only** the 8 attributes above (`additionalProperties: false`). Do **not** include a `comments` attribute in `delta_format` — it is ignored, and cannot keep the anchor. Because `update_block` replaces the entire delta and detaches block-anchored comments, warn the user before rewriting a block that has anchored comments, or leave the block as is and add content beside it with `add_markdown_content` / `create_block`.
 
 Combine attributes:
 
@@ -51,7 +52,7 @@ Combine attributes:
 Tag a user, doc, or board inline. Mention inserts ignore `attributes` (do not bold, italicize, or color them).
 
 ```json
-{ "insert": { "mention": { "id": 38288909, "type": "USER" } } }
+{ "insert": { "mention": { "id": "<user_id>", "type": "USER" } } }
 ```
 
 Three mention types:
@@ -60,18 +61,18 @@ Three mention types:
 |---|---|---|
 | `USER` | numeric user ID | `list_users_and_teams` with `name: "<display name>"` |
 | `DOC` | doc's `object_id` | `read_docs` to find the target doc, use the `object_id` field |
-| `BOARD` | numeric board ID | `search` with `searchType: "BOARD"`, or the user provides it |
+| `BOARD` | numeric board ID | `search` with `searchType: "BOARD"` and `searchTerm`, or the user provides it |
 
 Always pass `name` (or `userIds`) to `list_users_and_teams`. The unfiltered call returns the entire account user list and breaks token limits on real tenants.
 
-Example - "Hey @daniel, the @Q3-Plan doc is ready":
+Example - "Hey @daniel, the @Q3-Plan doc is ready" (substitute real numeric IDs from `list_users_and_teams` and `read_docs`):
 
 ```json
 [
   { "insert": { "text": "Hey " } },
-  { "insert": { "mention": { "id": 48202303, "type": "USER" } } },
+  { "insert": { "mention": { "id": "<user_id>", "type": "USER" } } },
   { "insert": { "text": ", the " } },
-  { "insert": { "mention": { "id": 18234567890, "type": "DOC" } } },
+  { "insert": { "mention": { "id": "<doc_object_id>", "type": "DOC" } } },
   { "insert": { "text": " doc is ready." } },
   { "insert": { "text": "\n" } }
 ]
@@ -82,28 +83,28 @@ Example - "Hey @daniel, the @Q3-Plan doc is ready":
 Embed the current value of a board column on a specific item. Renders live every time the doc is opened. Enables dashboards-as-paragraphs.
 
 ```json
-{ "insert": { "column_value": { "item_id": 11890636850, "column_id": "color_mm2x25ey" } } }
+{ "insert": { "column_value": { "item_id": "<item_id>", "column_id": "<status_column_id>" } } }
 ```
 
-`item_id` accepts string or number. `column_id` is a string (e.g. `"status"`, `"date4"`, `"color_mm2x25ey"`).
+`item_id` accepts string or number. Use `column_id` exactly as `get_board_info` returns it (for example, `"status"` on older boards or `"color_mk..."` on newer ones).
 
 Resolution rules:
 
-- Validate `item_id` exists via `get_board_items_page` or `get_full_board_data`.
+- Validate `item_id` exists via `get_board_items_page` (`boardId`, `itemIds`, `includeColumns: true`).
 - Validate `column_id` matches a real column on the item's board via `get_board_info`.
 - Wrong column IDs render as empty space - silent failure.
 - The viewer's permissions on the source board apply. Private boards mean private embeds.
 
-Example - status report paragraph with live status:
+Example - status report paragraph with live status (substitute real IDs from `get_board_info` and `get_board_items_page`):
 
 ```json
 [
   { "insert": { "text": "Q3 plan is currently " } },
-  { "insert": { "column_value": { "item_id": 11890636850, "column_id": "color_mm2x25ey" } } },
+  { "insert": { "column_value": { "item_id": "<item_id>", "column_id": "<status_column_id>" } } },
   { "insert": { "text": ", owned by " } },
-  { "insert": { "column_value": { "item_id": 11890636850, "column_id": "multiple_person_mm2x4gzh" } } },
+  { "insert": { "column_value": { "item_id": "<item_id>", "column_id": "<people_column_id>" } } },
   { "insert": { "text": ", due " } },
-  { "insert": { "column_value": { "item_id": 11890636850, "column_id": "date_mm2x10qd" } } },
+  { "insert": { "column_value": { "item_id": "<item_id>", "column_id": "<date_column_id>" } } },
   { "insert": { "text": "." } },
   { "insert": { "text": "\n" } }
 ]
@@ -121,7 +122,7 @@ When you read a doc back, column_value embeds appear in storage as `macro` blots
     "macro": {
       "type": "COLUMN_VALUE",
       "macroId": "...",
-      "macroData": { "itemId": 11890636850, "columnId": "color_mm2x25ey" }
+      "macroData": { "itemId": "<item_id>", "columnId": "<status_column_id>" }
     }
   }
 }
@@ -213,7 +214,7 @@ To toggle a checkbox:
 ```json
 [
   { "insert": { "text": "See the " } },
-  { "insert": { "text": "design doc" }, "attributes": { "link": "https://monday.monday.com/docs/123456" } },
+  { "insert": { "text": "design doc" }, "attributes": { "link": "https://<account>.monday.com/docs/<doc_object_id>" } },
   { "insert": { "text": " for details." } },
   { "insert": { "text": "\n" } }
 ]
@@ -223,9 +224,9 @@ To toggle a checkbox:
 
 ```json
 [
-  { "insert": { "mention": { "id": 38288909, "type": "USER" } } },
+  { "insert": { "mention": { "id": "<user_id>", "type": "USER" } } },
   { "insert": { "text": " is owning, current status: " } },
-  { "insert": { "column_value": { "item_id": 11890636850, "column_id": "color_mm2x25ey" } } },
+  { "insert": { "column_value": { "item_id": "<item_id>", "column_id": "<status_column_id>" } } },
   { "insert": { "text": "\n" } }
 ]
 ```
@@ -292,9 +293,9 @@ When the skill creates a doc in **passive scaffold mode** (the default, before u
 
 ## Anti-patterns - things that look reasonable but fail
 
-- **Forgetting the terminator.** Every delta_format MUST end with `{insert: {text: "\n"}}`. Even short ones.
+- **Forgetting the terminator.** Every `delta_format` MUST end with `{insert: {text: "\n"}}`. Even short ones.
 - **Mention with attributes.** `attributes` on a mention insert is ignored. Use formatting on adjacent text inserts instead.
 - **column_value in a code block.** Code blocks render the column_value insert as literal text, not as a live embed. Use a regular text block for embeds.
-- **Mention id as a string when the API expects a number** - the schema accepts string OR number, but be consistent. User IDs from `list_users_and_teams` come back as numeric strings; cast to number before sending if mixing.
+- **Non-numeric mention id** - the schema accepts a string or a number, and the tool converts it to a number. A string that is not a number (a name, an email) fails the operation. Use the numeric ID from `list_users_and_teams`, `read_docs` or `search`.
 - **Multiple terminators.** Only one `{insert: {text: "\n"}}` at the end. Embedded `\n` characters inside other inserts are fine for line breaks within the block, but the terminator must be the last entry.
-- **Trying to delete a mention by clearing the text around it.** `update_block` replaces the whole delta. To remove a mention, omit it from the new delta_format and re-send the rest.
+- **Trying to delete a mention by clearing the text around it.** `update_block` replaces the whole delta. To remove a mention, omit it from the new `delta_format` and re-send the rest.

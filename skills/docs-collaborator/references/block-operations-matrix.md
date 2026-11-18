@@ -7,7 +7,7 @@ Per-block-type guide to which `update_doc` operation to use. Picking the wrong o
 1. Call `read_docs` with `include_blocks: true` to get the doc's blocks.
 2. Find the target block by `id` and look up its `type` field.
 3. Match the row below to choose the operation.
-4. Compose the operation per the column "Example payload".
+4. Compose the operation per the example payload below.
 
 ## Type naming - input vs output
 
@@ -22,21 +22,21 @@ When matching a read block to a row in this table, normalize on the lowercase ou
 
 | Output type | Subtypes | Allowed ops | Disallowed | Notes |
 |---|---|---|---|---|
-| `large title`, `medium title`, `small title`, `normal text`, `quote` | text block subtypes (LARGE_TITLE / MEDIUM_TITLE / SMALL_TITLE / NORMAL_TEXT / QUOTE) | `update_block` (content), `replace_block` (subtype change), `delete_block`, `add_comment` | Cannot change subtype with `update_block` | Use `block_content_type: "text"` in update_block |
-| `code` | language-tagged code block | `update_block`, `replace_block`, `delete_block`, `add_comment` | - | Use `block_content_type: "code"` in update_block; pass `language` to update or change |
-| `bulleted list`, `numbered list`, `check list` | list_item subtypes (BULLETED_LIST / NUMBERED_LIST / CHECK_LIST) | `update_block` (content), `replace_block` (variant change), `delete_block`, `add_comment` | Cannot change list variant with `update_block` | Use `block_content_type: "list_item"` in update_block; pass `checked: bool` for CHECK_LIST items; `indentation: 0..N` for nesting |
-| `divider` | - | `replace_block`, `delete_block` | `update_block` (no mutable properties), `add_comment` | Replace with another divider is a no-op visually; rarely needed |
-| `page break` | - | `delete_block` | `update_block`, `replace_block`, `add_comment` | Print-layout only; treat as decorative |
-| `table` | row_count, column_count, column widths | `replace_block`, `delete_block` | `update_block` (cell content not addressable), `add_comment` | See "Tables" below |
-| `cell` (table cell) | - | `delete_block` only via parent table replacement | `update_block`, `replace_block`, `create_block` with parent_block_id, `add_comment` | Cells are pseudo-blocks; cannot be mutated directly |
-| `image` | public_url or asset_id | `replace_block` (swap source), `delete_block` | `update_block`, `add_comment` | URL / asset_id immutable after creation |
-| `video` | raw_url | `replace_block` (swap source), `delete_block` | `update_block`, `add_comment` | URL immutable after creation |
-| `notice box` | theme: INFO / TIPS / WARNING / GENERAL | `replace_block` (theme change), `delete_block`, `create_block` with parent_block_id (in a SEPARATE later call) | `update_block`, `add_comment` directly on the notice_box itself | Theme immutable; content lives in child blocks. See "Notice boxes" below |
-| `layout` | column_count: 2-6, column_style widths | `replace_block`, `delete_block` | `update_block`, `create_block` with parent_block_id, `add_comment` | Cell content not populatable via API at all. See "Layouts" below |
-| `BOARD` embed | - | `delete_block` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify; must be added from the monday UI |
-| `WIDGET` embed | - | `delete_block` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
-| `DOC` embed | - | `delete_block` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
-| `GIPHY` | - | `delete_block` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
+| `large title`, `medium title`, `small title`, `normal text`, `quote` | text block subtypes (LARGE_TITLE / MEDIUM_TITLE / SMALL_TITLE / NORMAL_TEXT / QUOTE) | `update_block` (content), `replace_block` (subtype change), `delete_blocks`, `add_comment` | Cannot change subtype with `update_block` | Use `block_content_type: "text"` in update_block |
+| `code` | language-tagged code block | `update_block`, `replace_block`, `delete_blocks`, `add_comment` | - | Use `block_content_type: "code"` in update_block; pass `language` to update or change. `create_block` / `replace_block` ignore `language`, so set it with a follow-up `update_block` |
+| `bulleted list`, `numbered list`, `check list` | list_item subtypes (BULLETED_LIST / NUMBERED_LIST / CHECK_LIST) | `update_block` (content), `replace_block` (variant change), `delete_blocks`, `add_comment` | Cannot change list variant with `update_block` | Use `block_content_type: "list_item"` in update_block; pass `checked: bool` for CHECK_LIST items; `indentation: 0..N` for nesting |
+| `divider` | - | `replace_block`, `delete_blocks` | `update_block` (no mutable properties), `add_comment` | Replace with another divider is a no-op visually; rarely needed |
+| `page break` | - | `delete_blocks` | `update_block`, `replace_block`, `add_comment` | Print-layout only; treat as decorative |
+| `table` | row_count, column_count, column widths | `replace_block`, `delete_blocks` | `update_block` (cell content not addressable), `add_comment` | See "Tables" below |
+| `cell` (table cell) | - | `delete_blocks` only via parent table replacement | `update_block`, `replace_block`, `create_block` with parent_block_id, `add_comment` | Cells are pseudo-blocks; cannot be mutated directly |
+| `image` | public_url or asset_id | `replace_block` (swap source), `delete_blocks` | `update_block`, `add_comment` | URL / asset_id immutable after creation; `asset_id` must be an existing monday asset (see "Markdown notes" in create-modes.md) |
+| `video` | raw_url | `replace_block` (swap source), `delete_blocks` | `update_block`, `add_comment` | URL immutable after creation |
+| `notice box` | theme: INFO / TIPS / WARNING / GENERAL | `replace_block` (theme change), `delete_blocks`, `create_block` with parent_block_id (in a SEPARATE later call) | `update_block`, `add_comment` directly on the notice_box itself | Theme immutable; content lives in child blocks. See "Notice boxes" below |
+| `layout` | column_count: 2-6, column_style widths | `replace_block`, `delete_blocks` | `update_block`, `create_block` with parent_block_id, `add_comment` | Cell content not populatable via API at all. See "Layouts" below |
+| `BOARD` embed | - | `delete_blocks` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify; must be added from the monday UI |
+| `WIDGET` embed | - | `delete_blocks` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
+| `DOC` embed | - | `delete_blocks` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
+| `GIPHY` | - | `delete_blocks` only | `update_block`, `replace_block`, `create_block`, `add_comment` | No public API to create or modify |
 
 **Rendering quirk - list_item + mention via `update_block`.** When adding an inline mention to a list_item that previously contained only text, `update_block` may save the mention blot correctly (data confirms) but some clients can fail to render the pill (text-prefix-before-mention case). Workaround: use `replace_block` with a fresh list_item containing the same delta. Same pattern in a `normal_text` block renders correctly; the quirk appears specific to list_item updates.
 
@@ -65,7 +65,7 @@ Variants:
 
 `update_block` cannot change the block subtype. To go from a paragraph to an H2, use `replace_block`.
 
-## replace_block - delete + create in one slot
+## replace_block - delete, then create
 
 Use when:
 
@@ -77,6 +77,7 @@ Use when:
 {
   "operation_type": "replace_block",
   "block_id": "<id of block to remove>",
+  "after_block_id": "<id of the block before it>",
   "block": {
     "block_type": "text",
     "text_block_type": "MEDIUM_TITLE",
@@ -88,7 +89,7 @@ Use when:
 }
 ```
 
-Note: `replace_block` is delete + create. Comments anchored to the old block are lost. Children of the old block (notice_box children, table cells) are NOT moved to the new block; they become orphaned blocks.
+Note: `replace_block` is delete + create, not an in-place swap. Pass `after_block_id` (the block that precedes the old one; from `read_docs`) or the replacement is appended at the end of the doc. For a block inside a notice_box, also pass `parent_block_id`. If the create step fails, the original block is already deleted. Comments anchored to the old block are lost. Children of the old block (notice_box children, table cells) are NOT moved to the new block; they become orphaned blocks.
 
 ## create_block - insert anywhere
 
@@ -125,18 +126,20 @@ Then in a SEPARATE call:
 }
 ```
 
-## delete_block - the only path for embed types
+## delete_blocks - the only path for embed types
 
 Works for every block type. The only available operation for `BOARD`, `WIDGET`, `DOC` embed, and `GIPHY` blocks.
 
+Put **ALL** block IDs to delete into a single `delete_blocks` operation's `block_ids` array (1-100 IDs). Never emit multiple `delete_blocks` operations in a row.
+
 ```json
 {
-  "operation_type": "delete_block",
-  "block_id": "<id>"
+  "operation_type": "delete_blocks",
+  "block_ids": ["<id1>", "<id2>"]
 }
 ```
 
-Deleting a parent block (notice_box, table, layout) does NOT delete its children. Delete children first if you want a clean removal.
+Deleting a parent block (notice_box, table, layout) does NOT delete its children. Include the child IDs in `block_ids` (or delete children first) if you want a clean removal.
 
 ## Tables
 
@@ -144,7 +147,7 @@ Tables are pre-populated only via markdown:
 
 - **Initial creation:** include the table in the markdown body of `create_doc`.
 - **After creation:** `add_markdown_content` with a markdown table appends a new pre-filled table.
-- **Editing existing cells:** not supported by the API. `replace_block` swaps the entire table; the new one can be populated only by also using `add_markdown_content` (delete the old table, then append a new markdown table).
+- **Editing existing cells:** not supported by the API. `replace_block` swaps the entire table; the new one can be populated only by also using `add_markdown_content` (delete the old table with `delete_blocks`, then append a new markdown table).
 
 If the user asks to "edit cell B2 of my table", explain the constraint and offer:
 
@@ -216,8 +219,8 @@ Notice box themes (`theme`):
 | Embed a live status from a board | `update_block` with column_value insert in delta_format | See delta-format-cheatsheet.md |
 | Add a callout box with content | Two `create_block` calls (notice_box, then child) | Cannot inline in one call |
 | Change a callout box theme | `replace_block` (notice_box) + recreate children | Theme immutable; children orphaned by replace |
-| Swap an image source | `replace_block` (image) | URL / asset_id immutable |
-| Add a Slack-style threaded comment | `add_comment` with `parent_update_id` | parent_update_id from include_comments |
+| Swap an image source | `replace_block` (image) | URL / asset_id immutable; pass `after_block_id` to keep the position |
+| Add a threaded comment | `add_comment` with `parent_update_id` | parent_update_id from include_comments |
 | Highlight a specific phrase with a comment | `add_comment` with `block_id` + `selection_from` + `selection_length` | Text-only blocks |
-| Remove an embedded board | `delete_block` (BOARD type) | No way to create or update embeds |
+| Remove an embedded board | `delete_blocks` (`block_ids: ["<id>"]`) | No way to create or update embeds |
 | Rename the doc | `set_name` | One operation, separate from block ops |

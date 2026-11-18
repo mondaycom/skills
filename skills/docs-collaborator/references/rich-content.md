@@ -8,7 +8,7 @@ The `table` block type is supported but constrained:
 
 - **Pre-filled tables**: only via `add_markdown_content` or the initial `create_doc` markdown body. Markdown table syntax populates cells in one shot.
 - **Empty tables via `create_block`**: possible, but cells cannot be populated via the API after creation. The user has to fill cells from the monday UI.
-- **Restructuring (changing row / column count or widths)**: `replace_block` - the new table can be pre-filled if you replace it via `add_markdown_content` instead, by deleting the old table and appending a new markdown table after the deletion target.
+- **Restructuring (changing row / column count or widths)**: `replace_block` - the new table can be pre-filled if you replace it via `add_markdown_content` instead, by deleting the old table (`delete_blocks`) and appending a new markdown table after the deletion target.
 
 When the user asks to "edit cell B2", explain the constraint and offer the closest workaround: rewrite the whole table via markdown.
 
@@ -56,9 +56,9 @@ Use cases worth scaffolding:
 
 Resolution rules:
 
-- Validate `item_id` exists via `get_board_items_page` or `get_full_board_data` before writing.
+- Validate `item_id` exists via `get_board_items_page` (`boardId`, `itemIds`, `includeColumns: true`) before writing.
 - Validate `column_id` matches a real column on the item's board via `get_board_info`. Wrong column IDs produce silent rendering gaps - the embed shows as empty space.
-- **Always use the board-specific status column ID** (e.g. `color_mm2x25ey`), never a generic literal like `"status"`. Cross-skill rule.
+- **Use the column ID exactly as `get_board_info` returns it** (for example, `status` on older boards or `color_mk...` on newer ones) — never guess without checking `get_board_info`.
 - Be careful with private boards: embedded column values respect board permissions, so a viewer without access to the source board sees nothing.
 
 ## Comments
@@ -71,6 +71,6 @@ Resolution rules:
 
 Threading: pass `parent_update_id` (the comment's update ID, returned by `add_comment` or `read_docs` with `include_comments: true`) to reply.
 
-Comment body uses HTML, not markdown. To tag a user in a comment, do not put `@` in the body - use `mentions_list` with a JSON array: `[{"id":"38288909","type":"User"}]`. Valid types: `User`, `Team`, `Board`, `Project`.
+Comment body uses HTML, not markdown. To tag a user in a comment, do not put `@` in the body - use `mentions_list` with a JSON array: `[{"id":"<user_id>","type":"User"}]`. Valid types: `User`, `Team`, `Board`, `Project`.
 
-Deleting a comment via `delete_update` does NOT auto-clean the anchored reference on the host block's text insert (`attributes.comments` still lists the dead update_id). For full cleanup, separately update the block's delta to drop the `comments` attribute.
+Deleting a comment is not available through the typed tools; use `all_monday_api` with the `delete_update` mutation only if the user insists. Note that deleting a comment does not auto-clean its anchored reference on the host block; rewriting the block with `update_block` (without any `comments` attribute, which is ignored) clears the stale anchor.

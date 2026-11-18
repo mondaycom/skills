@@ -24,7 +24,7 @@ Triggers that escalate to active mode:
 
 Resolution chain (name -> ID, never ask the user for IDs):
 - Item name -> `get_board_items_page` with `searchTerm` scoped to the named board
-- Board name -> `search` with `searchType: BOARD`
+- Board name -> `search` with `searchType: "BOARD"` and `searchTerm`
 - Owner name -> `list_users_and_teams` with `name:` (scoped per cross-skill rule)
 - Ambiguous match -> ask once with the top 3 candidates; do not silently pick
 
@@ -44,5 +44,5 @@ Starting points when the user names a use case. Extend freely; they are examples
 
 - Markdown headings (`#`, `##`, `###`) map to LARGE_TITLE / MEDIUM_TITLE / SMALL_TITLE blocks.
 - Markdown tables work and the cells will be populated with the values you put in. **This is the only way to get pre-filled table content.** Cell-level API population after creation is not supported.
-- Markdown images and links work. For asset-based images (uploaded files in monday), use `update_doc` with `create_block` and `block_type: "image"` plus `asset_id` after creation - markdown cannot reference assets.
+- Markdown images and links work. Markdown cannot reference monday assets: for an image block, use `update_doc` `create_block` with `block_type: "image"` and either `public_url` or `asset_id`. An `asset_id` must already exist - the `assetId` in an item's file column, or the `asset_id` that `finalize_asset_upload` returns after `get_asset_upload_url` (only when the client can PUT the file itself). Do not use the `public_url` from `get_assets` as an image source: it expires after an hour.
 - Markdown does not have notice_box, layout, embed, divider-with-spacing, mention, or live column-value syntax. Add those via `update_doc` after the doc is created.

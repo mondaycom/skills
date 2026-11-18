@@ -1,24 +1,18 @@
 ---
 name: docs-collaborator
 description: |
-  Creates, reads, edits, and comments on monday.com docs - the rich-content
-  surface inside monday for meeting notes, RFCs, runbooks, weekly updates,
-  postmortems, and any work-adjacent writing. Goes beyond markdown shuffling
-  by embedding live board column values inline (so the doc reflects real-time
-  status), tagging users / docs / boards via mentions, scaffolding common doc
-  shapes, and routing each edit through the correct update_doc operation.
-  Use when user asks to "create a doc", "make a monday doc", "draft meeting
-  notes", "write an RFC", "scaffold a runbook", "summarize a meeting in a
-  doc", "add a section to my doc", "edit my doc", "update the doc",
-  "comment on a doc", "tag someone in a doc", "embed a status in a doc",
+  Creates, reads, edits, and comments on monday.com docs - meeting notes, RFCs, runbooks, weekly
+  updates, and postmortems - with live board column-value embeds and user, doc, or board mentions.
+  Use when user asks to "create a doc", "make a monday doc", "draft meeting notes", "write an RFC",
+  "scaffold a runbook", "summarize a meeting in a doc", "add a section to my doc", "edit my doc",
+  "update the doc", "comment on a doc", "tag someone in a doc", "embed a status in a doc",
   "show live board data in a doc", "rename a doc", or "show me my docs".
   Don't use for creating or updating board items (use task-management), a status report from board data (use project-status-report), or building forms (use forms-builder).
 license: MIT
 metadata:
   author: monday.com
-  version: "0.2.2"
+  version: "0.2.3"
 ---
-
 # Docs Collaborator
 
 Create, read, edit, and comment on monday.com docs. **The skill is a capability surface, not a template engine.** Every doc is a stream of typed blocks (headings, paragraphs, lists, tables, code, dividers, notice boxes, layouts, embedded boards / widgets / docs / images / videos / GIFs). The named shapes listed below are starting points - compose and extend freely. The differentiators (live column-value embeds, inline mentions, notice boxes, layouts) apply to any shape, named or invented.
@@ -27,7 +21,7 @@ The platform-native value over a raw markdown editor lives in three things most 
 
 ## Core constraint - read this first
 
-**Never edit a block you have not read.** monday's update_doc API is block-ID-based, and block IDs are only knowable through `read_docs` with `include_blocks: true`. Skipping the read leads to operations referencing IDs that do not exist (silent failure) or - worse - reusing an ID from another doc. The closed-loop pattern is non-negotiable:
+**Never edit a block you have not read.** monday's `update_doc` API is block-ID-based, and block IDs are only knowable through `read_docs` with `include_blocks: true`. Skipping the read leads to operations referencing IDs that do not exist (silent failure) or - worse - reusing an ID from another doc. The closed-loop pattern is non-negotiable:
 
 1. `read_docs` with `include_blocks: true` to get block IDs, types, and positions.
 2. Identify the target block(s) by type and position or by content.
@@ -39,7 +33,7 @@ Each block type has a different set of allowed mutations. Picking the wrong oper
 
 - **text, code, list_item:** `update_block` edits content; `replace_block` changes a text subtype or list variant, which `update_block` cannot.
 - **divider, table, image, video, notice_box, layout:** `replace_block` only (their properties are immutable after creation).
-- **BOARD, WIDGET and DOC embeds, GIPHY:** `delete_block` only. No public API creates or modifies them.
+- **BOARD, WIDGET and DOC embeds, GIPHY:** `delete_blocks` only. No public API creates or modifies them.
 
 Read `references/block-operations-matrix.md` before any structural edit: it has the full routing matrix, a list_item rendering quirk, and example payloads.
 
@@ -50,15 +44,15 @@ Read `references/block-operations-matrix.md` before any structural edit: it has 
 monday docs live in one of two places:
 
 - **Workspace** (most common). Requires `workspace_id`. Optional `doc_kind`: `public` (default), `private` (only the creator), `share` (specific people). Optional `folder_id` to nest under a folder.
-- **Item-attached**. The doc lives in a doc-type column on a specific board item. Requires `item_id`. Optional `column_id` if the user picked a specific doc column; otherwise the tool auto-creates one.
+- **Item-attached**. The doc lives in a doc-type column on a specific board item. Requires `item_id`. Optional `column_id` if the user picked a specific doc column; otherwise the tool uses the board's existing doc column, or creates one if there is none.
 
-**Cell-limit preflight for item-attached docs.** Doc-type cells hold one doc per cell - hard API limit. Before calling `create_doc location=item`, preflight the target column via `get_board_items_page` with `columnIds: [<doc_col_id>]` to check whether the cell is already populated. If populated, do NOT attempt the create - it will fail with `CellLimitExceededException`. Fall back to **creating a workspace-level doc and adding a bi-directional DOC mention cross-link** between the new doc and the existing attached doc. Never auto-detach the existing doc.
+**Cell-limit preflight for item-attached docs.** Doc-type cells hold one doc per cell - hard API limit. Before calling `create_doc location=item`, preflight that cell via `get_board_items_page` (`boardId`, `itemIds`, `includeColumns: true`, `columnIds: [<doc_col_id>]`). If populated, do not create: the tool would return the existing doc unchanged (`existing_doc_found: true`) without applying your name or markdown. Offer to append to that doc with `add_markdown_content`, or **create a workspace-level doc with a bi-directional DOC mention cross-link** to it. Never auto-detach the existing doc.
 
-If the user does not name a workspace, fall back to the user's primary workspace via `get_user_context`. Ask once if it's still ambiguous; do not guess across multiple workspaces.
+If the user does not name a workspace, check their favorite workspaces in `get_user_context`, then `list_workspaces` (their own first). Ask once if it's still ambiguous; do not guess across multiple workspaces.
 
 ### Step 2: Plan-tier guard before creating a 4th doc
 
-**Free and Basic plans cap at 3 docs per account.** Before calling `create_doc` on a Free / Basic account, check whether this would be the 4th doc. There is no direct doc-count tool, so the practical guard is: if the user has hit this limit before or asks "can I create more than 3 docs?", warn them - upgrade to Standard+ removes the cap. Treat plan-tier as an open question rather than blocking the create call; the platform itself will reject if the cap is hit.
+**Free and Basic plans cap at 3 docs per account.** `get_user_context` returns the plan (`account.tier`). There is no doc-count tool, so the practical guard is: if the user has hit this limit before or asks "can I create more than 3 docs?", warn them - upgrade to Standard+ removes the cap. Treat plan-tier as an open question rather than blocking the create call; the platform itself will reject if the cap is hit.
 
 ### Step 3: Compose the body - shapes are examples, not boundaries
 
@@ -99,7 +93,7 @@ Capture the returned `doc_id`, `object_id`, and `doc_url`. The user wants the UR
 
 ### Step 5: Layer in the rich-content extras
 
-Mentions, live column-value embeds, notice boxes, layouts, and asset images all need a follow-up `update_doc` call. In active mode, wire them now using the resolved IDs from Step 3. In passive mode, leave the slot markers in place - the user fills slots later by naming items. See "Common patterns" in `references/delta-format-cheatsheet.md`.
+Mentions, live column-value embeds, notice boxes, layouts, and images all need a follow-up `update_doc` call. In active mode, wire them now using the resolved IDs from Step 3. In passive mode, leave the slot markers in place - the user fills slots later by naming items. See "Common patterns" in `references/delta-format-cheatsheet.md`.
 
 ### Step 6: Confirm and suggest next steps
 
@@ -108,7 +102,6 @@ Plain-language confirmation: name, workspace, doc URL. State the mode used (pass
 - "Want me to tag the attendees with @mentions?"
 - "Want me to embed live status from the project board?"
 - "Should I add a notice box at the top with the meeting outcome?"
-- "Want me to share the doc URL in a Slack channel?"
 
 ## Workflow: Read a doc
 
@@ -116,9 +109,9 @@ Plain-language confirmation: name, workspace, doc URL. State the mode used (pass
 
 Three ways the user might point at a doc:
 
-- **doc_id** (e.g., `41302579`) - the API's primary key, returned by `create_doc` and `read_docs`.
-- **object_id** (e.g., `18411484379`) - the numeric segment of the doc URL: `https://monday.monday.com/docs/{object_id}`.
-- **doc name or fuzzy reference** ("the Q3 retro doc") - resolve via `read_docs` with `type: "workspace_ids"` to list docs in a workspace, then match by name.
+- **doc_id** (e.g., `12345678`) - the API's primary key, returned by `create_doc` and `read_docs`.
+- **object_id** (e.g., `9876543210`) - the numeric segment of the doc URL: `https://<account>.monday.com/docs/{object_id}`.
+- **doc name or fuzzy reference** ("the Q3 retro doc") - resolve via `read_docs` with `type: "workspace_ids"` to list docs in a workspace, or `search` with `searchType: "DOCUMENTS"` and `searchTerm: "<doc name>"`, then match by name.
 
 `read_docs` is forgiving: if you call it with `type: "ids"` and the value is actually an `object_id`, it auto-retries as `object_ids`. Lean on this rather than guessing.
 
@@ -127,7 +120,7 @@ Three ways the user might point at a doc:
 Two modes:
 
 - **content** (default) - returns the doc's blocks and / or markdown projection.
-  - `include_blocks: true` is **mandatory** if any edit will follow. Do not omit it.
+  - `include_blocks: true` is **mandatory** if any edit will follow. Blocks come 25 per page; use `blocks_limit` / `blocks_page` for longer docs.
   - `include_comments: true` to fetch all comments and replies. Use `comments_limit` to cap (default 50).
 - **version_history** - returns the doc's edit history (restoring points). Pass the `object_id`, not the `id`. Set `version_history_limit` for "last N changes" requests; set `include_diff: true` to see what changed (slower).
 
@@ -137,7 +130,7 @@ The API's `blocks_as_markdown` projection renders mentions as `@{USER-XXX}` plac
 
 For "show me / what's in / read this doc" prompts: resolve every mention to a display name, resolve embeds to their current values when cheap, and add an enumeration table of inline non-text elements with their IDs. Read `references/read-rendering.md` for the exact rules.
 
-Do not use `show-table` for doc content - the doc itself is the UI. Render in chat with markdown.
+Render doc content directly in chat using Markdown.
 
 ## Workflow: Edit a doc
 
@@ -149,12 +142,12 @@ Do not use `show-table` for doc content - the doc itself is the UI. Render in ch
 
 Reach for the simplest one that does the job:
 
-- **Add new content at the end:** `add_markdown_content` (no block IDs needed; supports text, lists, tables, code).
-- **Add asset-based images:** `create_block` with `block_type: "image"` and `asset_id` (markdown does not support asset images).
+- **Add new content at the end:** `add_markdown_content` (no block IDs needed; supports text, lists, tables, code; optional `after_block_id`).
+- **Add images:** `create_block` with `block_type: "image"` and `public_url`, or `asset_id` of an existing monday file (see `references/create-modes.md`).
 - **Edit existing text / code / list_item content in place:** `update_block` with the matching `block_content_type` (`text`, `code`, or `list_item`).
-- **Change a block's subtype** (paragraph -> H2, bulleted -> numbered, INFO notice -> WARNING notice): `replace_block`. Subtypes are set on creation only.
+- **Change a block's subtype** (paragraph -> H2, bulleted -> numbered, INFO notice -> WARNING notice): `replace_block`. Pass `after_block_id` (the preceding block), or the new block lands at the end.
 - **Insert a block at a precise position:** `create_block` with `after_block_id` set. There is no `before_block_id` operation - to insert at the very top of a doc, the only path is to insert after the doc's first block.
-- **Delete:** `delete_block`. The only path for BOARD / WIDGET / DOC embed / GIPHY blocks.
+- **Delete:** `delete_blocks` with `block_ids: ["<id1>", ...]` (1-100 IDs in one operation). The only path for BOARD / WIDGET / DOC embed / GIPHY blocks.
 - **Comment:** `add_comment` - HTML body; tag people via `mentions_list`, not `@` in the body (see "Comments" in `references/rich-content.md`).
 - **Rename the doc:** `set_name`.
 
@@ -165,7 +158,7 @@ The full type-to-operation routing lives in `references/block-operations-matrix.
 `update_block` and `create_block` for content blocks take a `delta_format` array of insert ops. Three rules govern every delta:
 
 1. The last op MUST be `{insert: {text: "\n"}}`. Always. No exceptions.
-2. Plain text uses `{insert: {text: "..."}}` with optional `attributes` (bold, italic, underline, strike, code, link, color, background).
+2. Plain text uses `{insert: {text: "..."}}` with optional `attributes` (`bold`, `italic`, `underline`, `strike`, `code`, `link`, `color`, `background`).
 3. Two non-text inserts unlock the differentiators:
    - Mention: `{insert: {mention: {id: <numeric-id>, type: "USER" | "DOC" | "BOARD"}}}`. Resolve user IDs via `list_users_and_teams` (always pass `name` to scope the call).
    - Live column-value embed: `{insert: {column_value: {item_id: <id>, column_id: "<column_id>"}}}`. Renders the current value of that column on that item, live, every time the doc is opened.
@@ -179,7 +172,7 @@ Worked examples and the full attribute table live in `references/delta-format-ch
 - **Notice box nesting requires two calls.** A notice_box created in the same call cannot be referenced by `parent_block_id` in a later operation in the same call. Create the notice_box, capture the returned ID, then make a second `update_doc` call to nest children.
 - **Position dependencies.** If operation B references the position of a block created by operation A, prefer two calls. Failures partway through the array leave the doc in a partial state.
 - **Same-block conflict detection.** When multiple operations in the same call (or the same user turn) target the same `block_id`, surface the conflict to the user before executing - "last write wins" is the observed behavior. Example: `update_block` adds a mention to paragraph X, then a later `update_block` replaces paragraph X entirely. The second wins; the mention is lost.
-- **Comment anchors live in the delta.** When a block has anchored comments, the read response shows `attributes.comments: [<update_id>, ...]` on the relevant text insert. `update_block` replaces the entire delta_format, so a clean rewrite detaches the comment from the block (the comment itself survives on the backing item but loses its block link). To preserve anchored comments through an edit, include the `comments` attribute on the matching text insert in the new delta.
+- **Comment anchors and `update_block`.** `update_block` replaces the whole `delta_format` and detaches block-anchored comments (the comment survives, but loses its block link). Never send a `comments` attribute - it is ignored, and cannot keep the anchor. Warn the user before rewriting a block with anchored comments, or add content beside it instead.
 
 ### Step 5: Verify and confirm
 
@@ -193,7 +186,7 @@ Live column-value embeds are the differentiator: they keep a doc in sync with re
 
 When the user does not specify all values:
 
-- **Workspace**: the user's primary workspace via `get_user_context`. State the default. Ask once if multiple workspaces are plausible.
+- **Workspace**: a favorite workspace from `get_user_context`. State the default. Ask once if multiple workspaces are plausible.
 - **doc_kind**: `public` (the platform default).
 - **Folder**: none (root of the workspace).
 - **Doc shape**: if the user names a use case ("meeting notes", "RFC", "weekly update"), scaffold the matching shape as a starting point and extend per the user's specific asks. If the user invents a shape, compose with judgment - no template needed.
@@ -205,10 +198,10 @@ State every default in the response so the user can override.
 ## Validate preconditions before writing
 
 - **Doc exists:** `read_docs` succeeded for the target ID before any write.
-- **Block IDs are real:** every `block_id` in the operations array came from the most recent `read_docs` call.
+- **Block IDs are real:** every `block_id` (or ID in `block_ids`) in the operations array came from the most recent `read_docs` call.
 - **User IDs for mentions:** resolved via `list_users_and_teams` (always with a `name` or `userIds` filter).
-- **Item IDs and column IDs for embeds:** `get_board_info` and `get_board_items_page` confirm both before the write. Status column IDs are always board-specific (e.g. `color_mm2x25ey`), never the generic literal `"status"`.
-- **Workspace exists:** `list_workspaces` if the user named one but did not provide an ID.
+- **Item IDs and column IDs for embeds:** `get_board_info` and `get_board_items_page` confirm both before the write. Use the column ID exactly as `get_board_info` returns it (for example, `status` on older boards or `color_mk...` on newer ones) — never guess without checking `get_board_info`.
+- **Workspace exists:** `search` with `searchType: "WORKSPACES"` if the user named one but did not provide an ID.
 - **Cell capacity for item-attached docs:** preflight the target doc column via `get_board_items_page` before `create_doc location=item` (see Step 1).
 - **Empty-data fallback for active mode:** when the user's intent references a column with no values set (e.g. "top priorities" but the Priority column is entirely null), do NOT silently pick. Detect the empty state, disclose to the user ("no Priority values set on any items"), offer a fallback heuristic with explicit reasoning ("picking by Status + Due Date proximity instead"), and offer override.
 
@@ -224,17 +217,17 @@ When a call fails, tell the user what went wrong and how to fix it. The catalog 
 
 Require explicit confirmation for:
 
-- Deleting 3+ blocks in one call.
+- Deleting 3+ blocks in one call (use a single `delete_blocks` operation with all IDs in `block_ids`, up to 100 per call).
 - Deleting a block that is the only content in its parent (deletes the parent's only content; the parent stays as an empty shell).
 - Deleting a notice_box, table, or layout - children are NOT auto-deleted; they become orphaned. Either delete children first or accept the orphan state.
-- Bulk replace_block operations (each replace is a delete + create; non-reversible).
-- Renaming a doc that has live external references (Slack messages, other docs, item updates).
+- Bulk `replace_block` operations (each replace is a delete + create; non-reversible).
+- Renaming a doc that has live external references (chat messages, other docs, item updates).
 
 Single block edits, single block creates, and single comments need no extra confirmation - the user already asked.
 
-## When to use MCP UI widgets
+## Output format
 
-The doc is the UI. Do not render `show-table` or `show-chart` to display doc content. Plain-text confirmations and markdown summaries are the right output.
+The doc is the UI. Even when `show-table` or `show-chart` widgets are available, do not use them for doc content; present confirmations and summaries in plain text and Markdown.
 
 ## Plain language over raw JSON
 
@@ -242,15 +235,15 @@ Never tell the user "I called `read_docs` then `update_doc` with an `update_bloc
 
 ## Tools used
 
-- `get_user_context` - resolve the user's primary workspace
-- `list_workspaces` - find a workspace by name when not provided
+- `get_user_context` - favorite workspaces and plan tier
+- `list_workspaces` - list workspaces when the user names none
 - `create_doc` - create a doc in a workspace or attached to an item; markdown body imported as blocks on creation
 - `read_docs` - fetch one or more docs (content mode) or version history; `include_blocks: true` is mandatory before any edit; `include_comments: true` for comment threads
-- `update_doc` - sequential operations: `set_name`, `add_markdown_content`, `update_block`, `create_block`, `delete_block`, `replace_block`, `add_comment`
+- `update_doc` - sequential operations: `set_name`, `add_markdown_content`, `update_block`, `create_block`, `delete_blocks`, `replace_block`, `add_comment`
 - `list_users_and_teams` - resolve user IDs for mentions and `mentions_list` (always pass `name` or `userIds` to scope)
 - `get_board_info` - validate column IDs before writing live column-value embeds; preflight board structure for active-mode embed wiring
 - `get_board_items_page` - validate item IDs before writing live column-value embeds; preflight doc-column cells for item-attached create; resolve item names to IDs in active mode
-- `search` - fuzzy-resolve a doc by name or a board by name in active mode
+- `search` - fuzzy-resolve a doc (`searchType: "DOCUMENTS"`, `searchTerm`) or board (`searchType: "BOARD"`, `searchTerm`) or workspace (`searchType: "WORKSPACES"`) by name
 
 ## Additional resources
 

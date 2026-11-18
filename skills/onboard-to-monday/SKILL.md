@@ -11,9 +11,8 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.0"
+  version: "0.1.1"
 ---
-
 # Onboard to monday.com
 
 Get a brand-new monday.com user from "just connected" to a working board they recognize as their own, in one short conversation. The goal is a first win in minutes: a board built around the user's real work, with real items, one automation, and a clear next action.
@@ -31,11 +30,11 @@ The board itself is built by `create_board` with a `creationPrompt` - monday des
 
 ### Step 1: Confirm this is a new user
 
-Call `get_user_context`.
+Call `get_user_context` (returns the user's name and title, the account's plan tier and trial status, their favorites, and up to 10 recently used boards - not a full list of workspaces or boards). To pick the workspace for the new board, call `list_workspaces` (the user's own workspaces come first). If you need the complete list of boards in a workspace, call `workspace_info` with `workspace_id`.
 
-- Tell the user, in one line, which account and workspace they are connected to.
+- Tell the user, in one line, who they are connected as and which workspace you will build in.
 - **New user** (trial or recently created account, few or no boards of their own): continue with Step 2.
-- **Existing user** (the account already has boards they use): do not run onboarding. Say they already have boards set up, name a few of their most relevant ones, and offer to help with those instead (status update, add items, new board).
+- **Existing user** (the account already has boards they use): do not run onboarding. Say they already have boards set up, name a few of their recent/favorite boards, and offer to help with those instead (status update, add items, new board).
 - **Unexpected account** (the user says it is not the right one, or expected boards are missing): stop and ask them to disconnect and reconnect the monday.com connector, choosing the right account.
 
 Note the plan tier and trial status for Step 6.
@@ -67,25 +66,25 @@ If they change something, adjust and build. Do not re-confirm after small change
 
 ### Step 4: Create the board
 
-1. **Check for a name collision.** Call `search` with the board name. If a board with that name exists, ask whether to use it or create the new one with a different name.
-2. **Call `create_board`** with `boardName`, `boardKind: "public"` (or `"private"` if the user asked), the workspace from Step 1, and a `creationPrompt` that describes the board in plain language: what it tracks, the workflow stages, the fields each item needs, and the starter items. Leave the automation out - it is not created from the prompt; Step 6 adds it. Write the prompt from the agreed proposal, for example:
+1. **Check for a name collision.** Call `search` with `searchType: "BOARD"` and `searchTerm: "<board name>"`. If a board with that name exists, ask whether to use it or create the new one with a different name.
+2. **Call `create_board`** with `boardName`, `boardKind: "public"` (or `"private"` if the user asked), `workspaceId` (the workspace from Step 1, as a string), and a `creationPrompt` that describes the board in plain language: what it tracks, the workflow stages, the fields each item needs, and the starter items. Leave the automation out - it is not created from the prompt; Step 6 adds it. Write the prompt from the agreed proposal, for example:
 
    > A launch tracker for a marketing team planning a Q4 product launch. Work moves through To Do, In Progress, In Review, Done. Each task needs an owner, a due date, and a priority (Low, Medium, High, Critical). Starter tasks: Finalize messaging, Launch landing page, Partner email, Launch day checklist.
 
-3. **If `create_board` fails or times out, do not call it again straight away** - the board may have been created. Call `search` for the board name first, and only retry if it does not exist. Re-sending creates duplicate boards.
+3. **If `create_board` fails or times out, do not call it again straight away** - the board may have been created. Call `search` with `searchType: "BOARD"` and `searchTerm: "<board name>"` first, and only retry if it does not exist. Re-sending creates duplicate boards.
 
 ### Step 5: Check the result, fill gaps, and show the board
 
 `creationPrompt` gets most of the board right but not all. Call `get_board_info`, `get_board_items_page` (`includeColumns: true`), and `list_automations`, and compare with what you proposed:
 
-- **Group order** - if a later or terminal group (e.g. "Done") is on top, new items land there. Move the first workflow stage to the top with `all_monday_api`: `update_group(board_id, group_id, group_attribute: relative_position_before, new_value: "<current top group id>") { id }`.
+- **Group order** - if a later or terminal group (e.g. "Done") is on top, new items land there. Move the first workflow stage to the top with `all_monday_api`: `update_group(board_id, group_id, group_attribute: relative_position_before, new_value: "<current top group id>") { id }` (if a GraphQL mutation is rejected, check the live schema with `get_graphql_schema` / `get_type_details` if available).
 - **Columns** - if a key field is missing or has the wrong type (e.g. a website as `text` instead of `link`), add it with `create_column`. Do not rebuild the board.
 - **Items** - if starter items are missing, create them in one `create_items` call; if values you asked for are blank, fill them in one `update_items` call. Follow the task-management column formats. Assign items to the current user only if they agreed.
-- **Unrequested automations** - `create_board` can add automations nobody asked for (e.g. monday AI "categorize" rules that use AI credits). Mention them in one line and offer to turn them off.
+- **Unrequested automations** - `create_board` can add automations nobody asked for (e.g. monday AI "categorize" rules that use AI credits). Mention them in one line and offer to turn them off (`manage_automations`, `action: "deactivate"`, with the id from `list_automations`; if one cannot be changed there, point the user to the board's Automations panel).
 
 If a write tool fails after a successful read, follow the task-management rule: retry once, then stop and ask the user to reconnect the connector. Do not keep rebuilding.
 
-**Show the board right away.** As soon as the columns and starter items are in place, call `show-table` with the new board's `boardId` so the user sees their board as an interactive table in the chat. Do not pass `filters`; show the whole board. Add one short line, e.g. "Here's your board - adding a starter automation next." Do not wait for the automation step. If `show-table` is unavailable or fails, share the board URL from the tool response instead and continue.
+**Show the board right away.** As soon as the columns and starter items are in place, show it. If `show-table` is in your tool list, call it with the new board's `boardId` (as a string) so the user sees their board as an interactive table in the chat; do not pass `filters`. Otherwise, or if `show-table` fails, share the board URL from the `create_board` response with a concise Markdown list of the starter items (item name, group, status, due date). Add one short line, e.g. "Here's your board - adding a starter automation next." Do not wait for the automation step.
 
 ### Step 6: Add the starter automation
 
@@ -98,18 +97,16 @@ Ask before creating it (it can be part of the Step 3 confirmation).
 
 ### Step 7: Hand over with a first win
 
-The board is already on screen from Step 5 - do not call `show-table` again here.
-
-1. **Summarize in a few lines:** what was built, the automation (if created), and the board URL from the tool response. Do not repeat the items as a text list - the table already shows them. (If `show-table` failed in Step 5, list the starter items here instead.)
+1. **Summarize in a few lines:** what was built, the automation (if created), and the board URL from the `create_board` response. Do not call `show-table` again here or repeat the items if Step 5 already showed them.
 2. **Give one concrete thing to try right now,** phrased as something they can just say, using one of their own items:
    - "Try it: say **mark Finalize messaging as done**."
 
-   When they do, make the change (task-management skill), then call `show-table` again so they see the board update.
+   When they do, make the change (`task-management` skill), then call `show-table` again if you have it so they see the board update; otherwise re-read with `get_board_items_page` and confirm the new state in a short Markdown summary.
 
 Then offer, briefly, the habits that bring people back:
 
 - "Any time, ask me **what's overdue** or **give me a status update** on this board."
-- "Want me to invite your teammates so they can work on this with you?" (only if they said it is for a team)
+- "You can share the board link above with your teammates so they can collaborate on it with you." (only if they said it is for a team)
 
 Stop there. Do not chain further setup unless the user asks.
 
@@ -128,16 +125,18 @@ Pick the one that fits the board, using its real column, label, and group names:
 
 ## Tools Used
 
-- `get_user_context` - account, workspace, plan and trial status, and whether the user already has boards
-- `search` - board name collision check, and checking whether a failed `create_board` actually created the board
+- `get_user_context` - user, plan and trial status, favorites, and recently used boards
+- `list_workspaces` - pick the workspace to build the board in
+- `workspace_info` - list all boards in a workspace by `workspace_id` when checking full board coverage
+- `search` - board name collision check (`searchType: "BOARD"`, `searchTerm`), and checking whether a failed `create_board` actually created the board
 - `create_board` - build the board from a `creationPrompt`
 - `get_board_info` - read back the generated columns, groups, and labels
-- `get_board_items_page` - check the starter items' values
+- `get_board_items_page` - check starter items and confirm updates after the user's first change
 - `all_monday_api` - reorder groups (`update_group`) when the first stage is not on top
 - `update_items` - fill starter-item values the generated board left blank
 - `create_column` - add a key column the generated board is missing
 - `create_items` - add the starter items if the generated board does not have them
 - `create_automation` - create the starter automation
 - `list_automations` - verify the automation's trigger and conditions
-- `manage_automations` - deactivate an automation that was created wrong
-- `show-table` - display the new board as soon as its items exist (Step 5), and again after the user's first change
+- `manage_automations` - deactivate an automation that was created wrong, or one the user does not want
+- `show-table` - display the new board (Step 5) and the user's first change, when the client has it
