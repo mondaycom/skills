@@ -73,4 +73,4 @@ Threading: pass `parent_update_id` (the comment's update ID, returned by `add_co
 
 Comment body uses HTML, not markdown. To tag a user in a comment, do not put `@` in the body - use `mentions_list` with a JSON array: `[{"id":"<user_id>","type":"User"}]`. Valid types: `User`, `Team`, `Board`, `Project`.
 
-Deleting a comment is not available through the typed tools; use `all_monday_api` with the `delete_update` mutation only if the user insists. Note that deleting a comment does not auto-clean its anchored reference on the host block; rewriting the block with `update_block` (without any `comments` attribute, which the write schema does not accept) clears the stale anchor.
+Deleting a comment is not available through the typed tools; use `all_monday_api` with the `delete_update` mutation only if the user insists. Note that deleting a comment does not auto-clean its anchored reference on the host block; rewriting the block with `update_block` (without any `comments` attribute, which is ignored) clears the stale anchor.

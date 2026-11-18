@@ -36,7 +36,7 @@ Supported attributes (all optional, all apply to text inserts only):
 | `color` | string | text color (CSS-style or named) |
 | `background` | string | background highlight color |
 
-> **Important (comment anchors):** The `update_doc` write schema accepts **only** the 8 attributes above (`additionalProperties: false`). Do **not** include a `comments` attribute in `delta_format` — it will be rejected. Because `update_block` replaces the entire delta and detaches block-anchored comments, warn the user before rewriting a block that has anchored comments, or prefer `add_markdown_content` / `create_block` instead.
+> **Important (comment anchors):** The `update_doc` write schema accepts **only** the 8 attributes above (`additionalProperties: false`). Do **not** include a `comments` attribute in `delta_format` — it is ignored, and cannot keep the anchor. Because `update_block` replaces the entire delta and detaches block-anchored comments, warn the user before rewriting a block that has anchored comments, or leave the block as is and add content beside it with `add_markdown_content` / `create_block`.
 
 Combine attributes:
 

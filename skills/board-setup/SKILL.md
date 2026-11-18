@@ -241,33 +241,7 @@ If the user is unsure of their plan, just create the board with standard columns
 
 ## Board Templates by Use Case
 
-### Project Tracker
-- **Groups:** To Do, In Progress, In Review, Done
-- **Columns:** Status, Owner (people), Due Date (date), Priority (status, custom labels Low/Medium/High/Critical), Notes (text)
-
-### Bug Tracker
-- **Groups:** New, Triaged, In Progress, Fixed, Verified
-- **Columns:** Status, Assignee (people), Severity (status, custom labels Low/Medium/High/Critical), Due Date (date), Steps to Reproduce (long_text), Environment (dropdown)
-
-### Sales/CRM Pipeline
-- **Groups:** Lead, Qualified, Proposal, Negotiation, Closed Won, Closed Lost
-- **Columns:** Stage (status, custom labels matching the group names: Lead/Qualified/Proposal/Negotiation/Closed Won/Closed Lost), Owner (people), Company (text), Deal Value (numbers), Close Date (date), Source (dropdown)
-
-### Content Calendar
-- **Groups:** Ideas, In Production, In Review, Published
-- **Columns:** Status, Author (people), Publish Date (date), Content Type (dropdown), Channel (dropdown), Link (link)
-
-### Event Planning
-- **Groups:** Planning, Logistics, Marketing, Day-Of, Post-Event
-- **Columns:** Status, Owner (people), Timeline (timeline), Budget (numbers), Priority (status), Notes (text)
-
-### Sprint Board
-- **Groups:** Backlog, Sprint [current], In Progress, Done
-- **Columns:** Status, Assignee (people), Story Points (numbers), Sprint (dropdown), Due Date (date), Type (status)
-
-### Request/Intake
-- **Groups:** New Requests, Under Review, Approved, In Progress, Completed
-- **Columns:** Status, Requester (people), Assigned To (people), Priority (status), Due Date (date), Request Type (dropdown), Description (long_text)
+For common workflows (project tracker, bug tracker, CRM pipeline, content calendar, event planning, sprint board, request intake), start from the groups and columns in `references/board-templates.md`.
 
 ## Error Prevention and Remediation
 
@@ -297,4 +271,5 @@ If the user is unsure of their plan, just create the board with standard columns
 
 ## Additional Resources
 
+- **`references/board-templates.md`** - Starting groups and columns for common workflows
 - **`references/column-types-guide.md`** - Complete guide to all monday.com column types, when to use each, and configuration options

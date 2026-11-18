@@ -240,7 +240,7 @@ When an MCP call fails, do not pass the raw error through. Diagnose and propose 
 
 **Write tool fails while reads work.** If a write tool (`create_item`, `create_items`, `update_items`, `change_item_column_values`, `create_column`, `create_board`) is missing from the tool list, or returns "Resource not found", `USER_UNAUTHORIZED`, or 403 on a board you just read successfully, retry the same call once. If it fails again, stop - do not loop or try other write tools against the same board. Tell the user the connector session lost write access, ask them to disconnect and reconnect the monday.com connector, and, if `submit_bug_or_feature_request` is in your tool list, offer to report it; otherwise suggest contacting monday.com support if the issue persists.
 
-**Expected boards are missing or the workspace looks empty.** Call `list_users_and_teams` with `getMe: true` (it returns the user's email and the account URL) and tell the user which account they are connected to. Users with the same email on several monday accounts are often connected to the wrong one; reconnecting and picking the right account fixes it.
+**Expected boards are missing or the workspace looks empty.** Call `list_users_and_teams` with `getMe: true` (it returns the user's name and the account URL, whose subdomain names the account) and tell the user which account they are connected to. Users with the same email on several monday accounts are often connected to the wrong one; reconnecting and picking the right account fixes it.
 
 ## Tools Used
 

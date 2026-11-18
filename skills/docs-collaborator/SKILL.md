@@ -172,7 +172,7 @@ Worked examples and the full attribute table live in `references/delta-format-ch
 - **Notice box nesting requires two calls.** A notice_box created in the same call cannot be referenced by `parent_block_id` in a later operation in the same call. Create the notice_box, capture the returned ID, then make a second `update_doc` call to nest children.
 - **Position dependencies.** If operation B references the position of a block created by operation A, prefer two calls. Failures partway through the array leave the doc in a partial state.
 - **Same-block conflict detection.** When multiple operations in the same call (or the same user turn) target the same `block_id`, surface the conflict to the user before executing - "last write wins" is the observed behavior. Example: `update_block` adds a mention to paragraph X, then a later `update_block` replaces paragraph X entirely. The second wins; the mention is lost.
-- **Comment anchors and `update_block`.** `update_block` replaces the whole `delta_format` and detaches block-anchored comments (the comment survives, but loses its block link). Never send a `comments` attribute - the schema rejects it. Warn the user before rewriting a block with anchored comments, or add content beside it instead.
+- **Comment anchors and `update_block`.** `update_block` replaces the whole `delta_format` and detaches block-anchored comments (the comment survives, but loses its block link). Never send a `comments` attribute - it is ignored, and cannot keep the anchor. Warn the user before rewriting a block with anchored comments, or add content beside it instead.
 
 ### Step 5: Verify and confirm
 
