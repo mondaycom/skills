@@ -170,7 +170,7 @@ Time of day value.
 
 ### color_picker
 
-Hex color value.
+Hex color value. Not writable through the API; values are set in monday, so the agent cannot fill this column.
 
 **Use for:** Brand colors, category colors, design specifications.
 

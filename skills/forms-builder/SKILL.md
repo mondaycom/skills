@@ -14,7 +14,7 @@ description: |
 license: MIT
 metadata:
   author: monday.com
-  version: "0.1.3"
+  version: "0.1.4"
 ---
 # Forms Builder
 
@@ -52,7 +52,7 @@ Call `create_form` with:
 
 Capture the returned `form_token` (and `board_id`) - every other forms tool takes it as `formToken`.
 
-**`create_form` does not accept a form title parameter.** The form header defaults to "New Form" regardless of `destination_name` (which only names the backing board). Always follow `create_form` with an `update_form` call using `action: "updateFormHeader"` to set `form.title` (and optional `form.description`) before showing the URL to the user. Skipping this leaves every form labeled "New Form" in the WorkForms UI - confusing for end users and for the form owner browsing their forms list.
+**`create_form` does not accept a form title parameter.** The form header defaults to "New Form" regardless of `destination_name` (which only names the backing board). Always follow `create_form` with an `update_form` call using `action: "updateFormHeader"` to set `form.title` (and `form.description` if the user gave one) before showing the URL to the user. Skipping this leaves every form labeled "New Form" in the WorkForms UI - confusing for end users and for the form owner browsing their forms list.
 
 ### Step 3: Build the question set
 
@@ -96,7 +96,7 @@ After all questions are created, summarize them in a Markdown table (question te
 
 Forms are created **active by default**. The form URL works the moment `create_form` returns. If the user wants a draft state (questions still being shaped), call `update_form` with `action: "deactivate"` immediately, finish the questions, then `activate` when ready. Otherwise, share the URL as-is.
 
-`create_form` and `get_form` do not return the public form URL (`get_form` returns `features.shortenedLink.url` once the URL is shortened). Build it from the token. The `?r=` value is the account's data region; `use1` is the example `get_form` documents:
+`create_form` does not return the public form URL. To get a link that works in every data region, call `update_form` with `action: "shortenFormUrl"`, then `get_form` and share `features.shortenedLink.url` (a `wkf.ms` link). Only if that fails, build the URL from the token; the `?r=` value is the account's data region, and `use1` is just the example `get_form` documents:
 
 ```
 https://forms.monday.com/forms/{formToken}?r=use1
@@ -109,7 +109,6 @@ Include both the form URL and the backing board URL (`get_board_info` with the `
 End with 2-3 next-step suggestions:
 
 - **"Want the form on a single scrolling page (Classic) instead of one question per screen (OneByOne)?"** - Classic is the better default for most operational and internal forms. Surface this choice every time. The MCP tools cannot change it (see below); the suggestion points the user to Form Settings -> Layout in the monday UI.
-- "Want me to shorten the form URL?"
 - "Should I set a password on the form?"
 - "Should I set a submission limit or close date?"
 - "Want to remove the WorkForms branding? (Pro+ only.)"
@@ -134,7 +133,7 @@ Pick the right tool:
 
 - **Add / update / delete a single question:** `form_questions_editor`.
 - **Reorder questions:** `update_form` with `action: "updateQuestionOrder"` and `form: {questions: [{"id": "<q1>"}, {"id": "<q2>"}, ...]}` (objects with required `id` and optional `page_block_id`, with every existing question included).
-- **Header (title and description):** `update_form` with `action: "updateFormHeader"` (`form.title` and optional `form.description`).
+- **Header (title and description):** `update_form` with `action: "updateFormHeader"` (`form.title`, `form.description`, or both; at least one is required, and a field you omit keeps its current value).
 - **Branding, layout, colors, logo:** `update_form` with `action: "updateAppearance"`.
 - **Submission rules (anonymous, response limit, close date, login required, captcha):** `update_form` with `action: "updateFeatures"`.
 - **Activate / deactivate / shorten URL / set password:** corresponding actions.

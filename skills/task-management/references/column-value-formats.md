@@ -189,7 +189,7 @@ Geographic location.
 
 ## Additional Column Types
 
-> **Note:** The write tools' built-in format guide does not cover the types below (`rating`, `country`, `world_clock`, `week`, `hour`, `color_picker`), and `get_column_type_info` returns settings schemas, not value formats. If a write is rejected, show the user the API error before trying another shape.
+> **Note:** The write tools' built-in format guide does not cover the types below, and `get_column_type_info` returns settings schemas, not value formats. The shapes below were confirmed with `change_item_column_values` and read back. If a write is rejected, show the user the API error before trying another shape.
 
 ### Rating
 
@@ -233,11 +233,7 @@ Time value.
 
 ### Color Picker
 
-Nested hex color object.
-
-```json
-{"color_picker_column_id": {"color": {"hex": "#FF5733"}}}
-```
+Not writable through the API: any write fails with `InvalidColumnTypeException` ("This column type is not supported yet in the API"). Tell the user to set it in monday.
 
 ## Combining Multiple Columns
 
