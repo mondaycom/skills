@@ -57,6 +57,7 @@ cp -r skills/task-management ~/.cursor/skills/
 | `onboard-to-monday` | First-run onboarding for new users: builds a board tailored to their work, with starter items and an automation, and shows it as an interactive table |
 | `docs-collaborator` | Read, draft, and update monday docs with live board embeds and user mentions |
 | `forms-builder` | Build WorkForms for intake workflows that capture responses as items on a backing board |
+| `notetaker-setup` | Set up AI Notetaker: check whether it's ready, connect a calendar, and choose which meetings it joins automatically |
 
 ## License
 
